@@ -1,0 +1,13 @@
+test\org\viennacl\binding\BufferTest.class
+org\viennacl\binding\Context$Memory.class
+org\viennacl\binding\Matrix.class
+test\org\viennacl\binding\ContextTest.class
+test\org\viennacl\binding\KernelTest.class
+org\viennacl\binding\Buffer.class
+org\viennacl\binding\Context$1.class
+org\viennacl\binding\Kernel.class
+org\viennacl\binding\Context.class
+org\viennacl\binding\Operations.class
+org\viennacl\binding\util\DoubleToFloat.class
+org\viennacl\binding\DirectMemory.class
+test\org\viennacl\binding\util\DoubleToFloatTest.class

@@ -16,14 +16,16 @@ import moa.options.AbstractOptionHandler;
 import moa.tasks.TaskMonitor;
 import weka.core.Instance;
 import weka.core.Instances;
-//WEKA
-//valuation instances,total train time,total train speed,last train time,last train speed,test time,test speed,classified instances,classifications correct (percent),Kappa Statistic (percent),Kappa Temporal Statistic (percent),model training instances,model serialized size (bytes)
-//35000.0,6.96875,5022.421524663677,6.96875,5022.421524663677,395.609375,252.7745961530866,100000.0,95.705,91.41000477603734,91.39933517561775,35000.0,0.0
+
+// 32K
+//evaluation instances,total train time,total train speed,last train time,last train speed,test time,test speed,classified instances,classifications correct (percent),Kappa Statistic (percent),Kappa Temporal Statistic (percent),model training instances,model serialized size (bytes)
+//35000.0,0.40625,86153.84615384616,0.40625,86153.84615384616,50.359375,1985.7275829972075,100000.0,95.499,90.99807707806484,90.98682366134007,35000.0,0.0
+//70000.0,0.4375,160000.0,0.03125,1120000.0,49.796875,2008.1581424537183,100000.0,95.422,90.84369109910038,90.87265984807702,70000.0,0.0
 
 //EvaluatePeriodicHeldOutTest -l gpu.KNN
 //valuation instances,total train time,total train speed,last train time,last train speed,test time,test speed,classified instances,classifications correct (percent),Kappa Statistic (percent),Kappa Temporal Statistic (percent),model training instances,model serialized size (bytes)
 //100000.0,0.609375,164102.5641025641,0.609375,164102.5641025641,386.140625,2589.7301015659773,1000000.0,76.4087,51.912289570814664,51.6706409689103,100000.0,0.0
-public class DoubleLinearSearch extends Search{
+public class FloatLinearSearch extends Search{
 	
 	private Instances m_dataset;
 	private Context m_context;
@@ -39,7 +41,7 @@ public class DoubleLinearSearch extends Search{
 	private DoubleMergeSort m_sort;
 	private Buffer m_result_index_buffer;
 
-	public DoubleLinearSearch()
+	public FloatLinearSearch()
 	{
 		m_dirty = true;
 	}

@@ -62,6 +62,20 @@ public class DirectMemory {
 			throw new RuntimeException("Attempt to access null pointer");
 		return m_direct_memory.getInt(handle);
 	}
+	public static byte readByte(long l) {
+		if (l == 0)
+			throw new RuntimeException("Attempt to access null pointer");
+		return m_direct_memory.getByte(l);
+	}
+	
+	public static void writeByte(long handle, byte res) {
+		if (handle == 0)
+			throw new RuntimeException("Attempt to access null pointer");
+		m_direct_memory.putByte(handle, res);
+	}
+
+
+
 	
 
 	public static void writeLong(long handle, long data) {
@@ -107,6 +121,15 @@ public class DirectMemory {
 		long write_to =   writeIndex * DOUBLE_SIZE;
 		m_direct_memory.copyMemory(data, read_from, null, m_buffer+write_to, data.length*m_direct_memory.ARRAY_INT_INDEX_SCALE );		
 	}
+	
+	public static void writeArray(long m_buffer, int writeIndex, long[] data) {
+		if (m_buffer == 0)
+			throw new RuntimeException("Attempt to access null pointer");
+		long read_from = m_direct_memory.ARRAY_LONG_BASE_OFFSET;
+		long write_to =   writeIndex * LONG_SIZE;
+		m_direct_memory.copyMemory(data, read_from, null, m_buffer+write_to, data.length*m_direct_memory.ARRAY_LONG_INDEX_SCALE );		
+	}
+
 
 	/** 
 	 * Allocate direct memory buffer and copy matrix contents
@@ -164,5 +187,19 @@ public class DirectMemory {
 		
 	}
 
+	public static void readArray(long handle, byte[] dst) {
+		long write_to = Unsafe.ARRAY_BYTE_BASE_OFFSET;
+		long read_from =   handle;
+		m_direct_memory.copyMemory(null, read_from, dst, write_to, dst.length*Unsafe.ARRAY_BYTE_INDEX_SCALE );		
+	}
+
+
+	public static void writeArray(long m_cpu_memory, int writeIndex, byte[] data) {
+		if (m_cpu_memory == 0)
+			throw new RuntimeException("Attempt to access null pointer");
+		long read_from = m_direct_memory.ARRAY_BYTE_BASE_OFFSET;
+		long write_to =   writeIndex;
+		m_direct_memory.copyMemory(data, read_from, null, m_cpu_memory+write_to, data.length*m_direct_memory.ARRAY_BYTE_INDEX_SCALE );		
+	}
 
 }

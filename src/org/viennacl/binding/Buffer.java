@@ -116,6 +116,12 @@ public class Buffer {
 		runtimeCheck(handle);
 		return DirectMemory.readInt(m_cpu_memory+handle);
 	}
+	
+	public byte readByte(int handle) {
+		runtimeCheck(handle);
+		return DirectMemory.readByte(m_cpu_memory+handle);
+	}
+
 
 
 	private void runtimeCheck(long handle) {
@@ -130,6 +136,12 @@ public class Buffer {
 		runtimeCheck(handle);
 		DirectMemory.writeLong(m_cpu_memory + handle, data);
 	}
+	
+	public void writeByte(long handle, byte res) {
+		runtimeCheck(handle);
+		DirectMemory.writeByte(m_cpu_memory + handle, res);
+	}
+
 
 	public void writeArray(long writeIndex, double[] data) {
 		long len = writeIndex + data.length * DirectMemory.DOUBLE_SIZE;
@@ -153,6 +165,21 @@ public class Buffer {
 		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
 	}
 	
+	public void writeArray(int writeIndex, long[] data) {
+		long len = writeIndex + data.length * DirectMemory.LONG_SIZE;
+		runtimeCheck(len);
+		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
+	}
+	
+	public void writeArray(int writeIndex, byte[] data) {
+		long len = writeIndex + data.length;
+		runtimeCheck(len);
+		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
+		
+	}
+
+
+	
 	public long readLong(long handle) {
 		runtimeCheck(handle);
 		return DirectMemory.readLong(m_cpu_memory + handle);
@@ -165,6 +192,10 @@ public class Buffer {
 	
 	public void readArray(int handle, int[] dst) {
 		runtimeCheck(handle + dst.length * DirectMemory.INT_SIZE);
+		DirectMemory.readArray(m_cpu_memory + handle, dst);
+	}
+	public void readArray(int handle, byte[] dst) {
+		runtimeCheck(handle + dst.length);
 		DirectMemory.readArray(m_cpu_memory + handle, dst);
 	}
 
@@ -180,8 +211,9 @@ public class Buffer {
 		if (length > dst.length)
 			throw new RuntimeException("length >>> data.length");
 		DirectMemory.readArray(m_cpu_memory + handle, dst, length);
-		
 	}
+	
+	
 	
 	public Buffer copy()
 	{
@@ -199,6 +231,7 @@ public class Buffer {
 
 	
 	/* map all data to cpu */
+	public native void fill(byte b);
 	private native void map(int mode);
 	private native void map(int mode, long offset, long length);
 	private native void commit();
@@ -212,6 +245,10 @@ public class Buffer {
 	private long m_native_context;
 	// readable/writable CPU memory;
 	private long m_cpu_memory;
+
+
+
+
 
 
 }

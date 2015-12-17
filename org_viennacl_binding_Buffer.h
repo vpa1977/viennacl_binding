@@ -15,6 +15,14 @@ extern "C" {
 #define org_viennacl_binding_Buffer_READ_WRITE 3L
 /*
  * Class:     org_viennacl_binding_Buffer
+ * Method:    fill
+ * Signature: (B)V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_fill
+  (JNIEnv *, jobject, jbyte);
+
+/*
+ * Class:     org_viennacl_binding_Buffer
  * Method:    map
  * Signature: (I)V
  */

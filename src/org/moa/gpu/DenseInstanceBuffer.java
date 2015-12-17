@@ -9,6 +9,13 @@ import weka.core.Instance;
 import weka.core.Instances;
 
 public class DenseInstanceBuffer {
+	
+	public enum Kind
+	{
+		DOUBLE_BUFFER, 
+		FLOAT_BUFFER, 
+		FIXED_INT_BUFFER
+	}
 
     
     private long m_number_of_attributes;
@@ -18,8 +25,10 @@ public class DenseInstanceBuffer {
     private Buffer m_attribute_values_buffer;
     private Buffer m_weights;
     private long m_value_size;
+    private Kind m_kind;
 
     public DenseInstanceBuffer(Context context, int rows, int numAttributes) {
+    	m_kind = Kind.DOUBLE_BUFFER;
     	m_value_size = DirectMemory.DOUBLE_SIZE;
         m_rows = rows;
         long byte_size = rows * numAttributes * m_value_size;
@@ -27,6 +36,11 @@ public class DenseInstanceBuffer {
         m_attribute_values_buffer = new Buffer(context, byte_size, Buffer.READ_WRITE);
         m_class_buffer =  new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
         m_weights = new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
+    }
+    
+    public Kind getKind() 
+    {
+    	return m_kind;
     }
 
     public void set(Instance inst, int pos) {

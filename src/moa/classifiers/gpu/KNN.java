@@ -42,10 +42,10 @@ public class KNN extends AbstractClassifier  {
     {
     }
 
-    public ClassOption searchMethod = new ClassOption("searchMethod", 'm', "KNN search Method", Search.class, "org.moa.opencl.knn.DoubleLinearSearch");
+    public ClassOption searchMethod = new ClassOption("searchMethod", 'm', "KNN search Method", Search.class, "org.moa.opencl.knn.SimpleZOrderSearch");
     		
     public IntOption neighboursNumber = new IntOption("neighbourNumber", 'n', "Number of neighbours to use", 16, 1, Integer.MAX_VALUE);
-    public IntOption slidingWindowSize = new IntOption("slidingWindowSize", 'b', "Sliding Window Size", 1024, 2, Integer.MAX_VALUE);
+    public IntOption slidingWindowSize = new IntOption("slidingWindowSize", 'b', "Sliding Window Size", 32768, 2, Integer.MAX_VALUE);
     public MultiChoiceOption distanceWeightingOption = new MultiChoiceOption("distanceWeighting", 'w', "Distance Weighting", 
             new String[]{"none", "similarity", "inverse"}, 
             new String[]{"No distance weighting", "Weight by 1-distance", "Weight by 1/distance"}, 0);

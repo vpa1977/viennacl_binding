@@ -1,8 +1,6 @@
 package org.moa.opencl.knn;
 
 import org.moa.gpu.DenseInstanceBuffer;
-
-
 import org.moa.gpu.SlidingWindow;
 import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.DoubleMergeSort;
@@ -11,19 +9,21 @@ import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
 
+import moa.classifiers.gpu.zorder.ZOrderItem;
+import moa.classifiers.gpu.zorder.ZOrderTransform;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.tasks.TaskMonitor;
 import weka.core.Instance;
 import weka.core.Instances;
+
 //WEKA
 //valuation instances,total train time,total train speed,last train time,last train speed,test time,test speed,classified instances,classifications correct (percent),Kappa Statistic (percent),Kappa Temporal Statistic (percent),model training instances,model serialized size (bytes)
 //35000.0,6.96875,5022.421524663677,6.96875,5022.421524663677,395.609375,252.7745961530866,100000.0,95.705,91.41000477603734,91.39933517561775,35000.0,0.0
 
-//EvaluatePeriodicHeldOutTest -l gpu.KNN
-//valuation instances,total train time,total train speed,last train time,last train speed,test time,test speed,classified instances,classifications correct (percent),Kappa Statistic (percent),Kappa Temporal Statistic (percent),model training instances,model serialized size (bytes)
-//100000.0,0.609375,164102.5641025641,0.609375,164102.5641025641,386.140625,2589.7301015659773,1000000.0,76.4087,51.912289570814664,51.6706409689103,100000.0,0.0
-public class DoubleLinearSearch extends Search{
+//evaluation instances,total train time,total train speed,last train time,last train speed,test time,test speed,classified instances,classifications correct (percent),Kappa Statistic (percent),Kappa Temporal Statistic (percent),model training instances,model serialized size (bytes)
+//10000.0,0.484375,20645.16129032258,0.484375,20645.16129032258,71.140625,1405.6665934548648,100000.0,42.321,0.0,-18.49089937959654,10000.0,0.0
+public class SimpleZOrderSearch extends Search{
 	
 	private Instances m_dataset;
 	private Context m_context;
@@ -36,10 +36,13 @@ public class DoubleLinearSearch extends Search{
 	private Buffer m_result_buffer;
 	private Buffer m_attribute_types;
 	private Distance m_distance;
-	private DoubleMergeSort m_sort;
+	private ZOrderTransform m_transform;
 	private Buffer m_result_index_buffer;
+	private Buffer m_candidates_buffer;
+	private ZOrderItem[] m_z_orders;
+	private DoubleMergeSort m_sort;
 
-	public DoubleLinearSearch()
+	public SimpleZOrderSearch()
 	{
 		m_dirty = true;
 	}
@@ -61,8 +64,6 @@ public class DoubleLinearSearch extends Search{
 		m_attribute_types.mapBuffer(Buffer.WRITE);
 		m_attribute_types.writeArray(0, attributeTypes(dataset));
 		m_attribute_types.commitBuffer();
-		
-		
 		
 	}
 	
@@ -90,12 +91,15 @@ public class DoubleLinearSearch extends Search{
 		{
 			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
+			m_transform = new ZOrderTransform(m_context, instance.dataset().numAttributes(), data.rows());
+			m_candidates_buffer = new Buffer(m_context, (2*K+1) * DirectMemory.INT_SIZE);
 			m_sort = new DoubleMergeSort(m_context, data.rows());
 		}
 
-		if (m_dirty)
+		if (m_z_orders == null)
 		{
 			m_min_max.fullMinMaxDouble(m_dataset, data, m_min_values, m_max_values);
+			m_z_orders = m_transform.createZOrder(instance.dataset(), data, m_min_values, m_max_values, m_attribute_types, true);
 			m_dirty = false;
 		}
 		m_min_values.copyTo(m_min_values_with_test_instance);
@@ -105,13 +109,24 @@ public class DoubleLinearSearch extends Search{
 		m_test_instance.commit();
 		m_min_max.updateMinMaxDouble(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
 		
-		m_distance.squareDistance(m_dataset, 
+		ZOrderItem[] possible_k = m_transform.findInZOrder(instance.dataset(), m_z_orders, m_test_instance.attributes(), m_min_values, m_max_values, m_attribute_types, K);
+		int[] cnd_items = new int[possible_k.length];
+		for (int i = 0; i < possible_k.length ; ++i)
+			cnd_items[i] = possible_k[i].instanceIndex();
+		m_candidates_buffer.mapBuffer(Buffer.WRITE);
+		m_candidates_buffer.writeArray(0, cnd_items);
+		m_candidates_buffer.commitBuffer();
+		
+		m_distance.squareDistance(
+				possible_k.length,
+				m_dataset, 
 				m_test_instance, 
 				data, 
 				m_min_values, 
 				m_max_values, 
 				m_attribute_types, 
-				m_result_buffer);
+				m_result_buffer, 
+				m_candidates_buffer);
 		
 		m_sort.sort(m_result_buffer, m_result_index_buffer);
 		int[] candidates = new int[K];

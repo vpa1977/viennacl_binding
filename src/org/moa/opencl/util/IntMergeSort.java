@@ -4,14 +4,14 @@ import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
 
-public class DoubleMergeSort {
+public class IntMergeSort {
 	private Buffer m_temp;
 	private Buffer m_dst;
 	private Context m_context;
 
-	public DoubleMergeSort(Context ctx, int bufferLength )
+	public IntMergeSort(Context ctx, int bufferLength )
 	{
-		m_temp = new Buffer(ctx, bufferLength * DirectMemory.DOUBLE_SIZE, Buffer.WRITE);
+		m_temp = new Buffer(ctx, bufferLength * DirectMemory.INT_SIZE, Buffer.WRITE);
 		m_dst = new Buffer(ctx, bufferLength * DirectMemory.INT_SIZE, Buffer.WRITE);
 		m_context = ctx;
 		init(m_context);
@@ -20,12 +20,7 @@ public class DoubleMergeSort {
 
 	public void  sort(Buffer input, Buffer indices)
 	{
-		nativeSort(input, m_temp, indices, m_dst, (int)(indices.byteSize()/DirectMemory.INT_SIZE));
-	}
-	
-	public void  sort(Buffer input, Buffer indices, int max_size)
-	{
-		nativeSort(input, m_temp, indices, m_dst, max_size);
+		nativeSort(input, m_temp, indices, m_dst);
 	}
 
 	@Override
@@ -38,6 +33,6 @@ public class DoubleMergeSort {
 	
 	private native void init(Context ctx);
 	private native void release();
-	private native void nativeSort(Buffer in, Buffer temp, Buffer src, Buffer dst, int max_size);
+	private native void nativeSort(Buffer in, Buffer temp, Buffer src, Buffer dst);
 	private long m_native_context;
 }

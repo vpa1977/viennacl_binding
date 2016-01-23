@@ -17,5 +17,7 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="C:/master_in_progress/moa/moa.jar" sourcepath="C:/master_in_progress/moa/src/moa-2014.11-SNAPSHOT-sources.jar"/>
+	<classpathentry kind="lib" path="C:/master_in_progress/moa/sizeofag.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

@@ -26,10 +26,10 @@ JNIEXPORT void JNICALL Java_org_moa_opencl_util_DoubleMergeSort_release
 /*
  * Class:     org_moa_opencl_util_DoubleMergeSort
  * Method:    nativeSort
- * Signature: (Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;)V
+ * Signature: (Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;I)V
  */
 JNIEXPORT void JNICALL Java_org_moa_opencl_util_DoubleMergeSort_nativeSort
-  (JNIEnv *, jobject, jobject, jobject, jobject, jobject);
+  (JNIEnv *, jobject, jobject, jobject, jobject, jobject, jint);
 
 #ifdef __cplusplus
 }

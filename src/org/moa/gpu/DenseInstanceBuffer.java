@@ -125,6 +125,17 @@ public class DenseInstanceBuffer {
 		return m_attribute_values_buffer;
 	}
 
+	public void write(Instances instances) {
+		begin(Buffer.WRITE);
+		for (int i  = 0; i < instances.size(); ++i)
+		{
+			Instance next = instances.get(i);
+			set(next,i);
+		}
+		commit();
+		
+	}
+
 
 
 }

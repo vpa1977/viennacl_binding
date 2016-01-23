@@ -11,6 +11,7 @@ public class Operations extends AbstractUtil {
 	private Context m_context;
 	private Kernel m_normalize_kernel;
 	private Kernel m_double2uint_kernel;
+	private Kernel m_prepare_order_key;
 	public Operations(Context ctx)
 	{
 		m_context = ctx;
@@ -18,8 +19,16 @@ public class Operations extends AbstractUtil {
 			init(m_context);
 		m_normalize_kernel = m_context.getKernel("operations", "normalize_attributes");
 		m_double2uint_kernel = m_context.getKernel("operations", "double2uint");
+		m_prepare_order_key = m_context.getKernel("operations", "prepare_order_key");
 	}
 	
+	
+	public void prepareOrderKey(Buffer order_key, int size)
+	{
+		m_prepare_order_key.set_global_size(0, size);
+		m_prepare_order_key.set_arg(0, order_key);
+		m_prepare_order_key.invoke();
+	}
 	public void doubleToInt32(Buffer double_buffer, Buffer int32_buffer, int rows, int num_attributes)
 	{
 		m_double2uint_kernel.set_global_size(0,rows * num_attributes);

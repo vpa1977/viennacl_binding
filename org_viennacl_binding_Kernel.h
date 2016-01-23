@@ -49,6 +49,22 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Kernel_set_1arg__IJ
 
 /*
  * Class:     org_viennacl_binding_Kernel
+ * Method:    set_arg
+ * Signature: (ID)V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Kernel_set_1arg__ID
+  (JNIEnv *, jobject, jint, jdouble);
+
+/*
+ * Class:     org_viennacl_binding_Kernel
+ * Method:    set_arg
+ * Signature: (IF)V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Kernel_set_1arg__IF
+  (JNIEnv *, jobject, jint, jfloat);
+
+/*
+ * Class:     org_viennacl_binding_Kernel
  * Method:    invoke
  * Signature: ([Ljava/lang/Object;)V
  */

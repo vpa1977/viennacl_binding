@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.opencl.util.CLogsSort;
+import org.moa.opencl.util.CLogsVarKeyJava;
 import org.moa.opencl.util.MortonCode;
 import org.moa.opencl.util.Operations;
 import org.viennacl.binding.Buffer;
@@ -16,7 +17,7 @@ import weka.core.Instances;
 public class ZOrderTransform {
 	
 	private MortonCode m_morton_code;
-	private CLogsSort m_sort;
+	private CLogsVarKeyJava m_sort;
 	private int m_src_dimensions;
 	private int m_rows;
 	private Buffer m_morton_code_buffer;
@@ -32,12 +33,11 @@ public class ZOrderTransform {
 		m_src_dimensions = dimensions;
 		m_operations = new Operations(ctx);
 		m_morton_code = new MortonCode(ctx, dimensions);
-		m_sort = new CLogsSort(ctx);
+		m_sort = new CLogsVarKeyJava(ctx, false);
 		m_rows = rows;
 		m_normalized_data = new Buffer(ctx, rows*dimensions*DirectMemory.DOUBLE_SIZE);
 		m_data_point_buffer = new Buffer(ctx, rows * dimensions * DirectMemory.INT_SIZE);
 		m_morton_code_buffer = new Buffer(ctx, rows * dimensions * DirectMemory.INT_SIZE);
-		m_temp_sort_buffer = new Buffer(ctx, rows*DirectMemory.INT_SIZE);
 		m_sorted_code_order = new Buffer(ctx, rows*DirectMemory.INT_SIZE);
 	}
 	
@@ -131,7 +131,10 @@ public class ZOrderTransform {
 		}
 		m_operations.doubleToInt32(m_normalized_data, m_data_point_buffer, m_rows, dataset.numAttributes());
 		m_morton_code.computeMortonCode(m_morton_code_buffer, m_data_point_buffer, m_rows);
-		m_sort.sort(m_temp_sort_buffer, m_morton_code_buffer, m_sorted_code_order, (int)(m_src_dimensions*DirectMemory.INT_SIZE), m_rows);
+		
+		m_operations.prepareOrderKey(m_sorted_code_order, m_rows);
+		
+		m_sort.sort(m_sorted_code_order, m_morton_code_buffer, null, (int)(m_src_dimensions*DirectMemory.INT_SIZE), m_rows);
 		
 		byte[] morton_keys = new byte[(int)(m_rows* m_src_dimensions*DirectMemory.INT_SIZE)];
 		m_morton_code_buffer.mapBuffer(Buffer.READ);

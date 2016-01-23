@@ -105,4 +105,43 @@ public class BufferTest {
 	}
 
 
+  
+  public static void main(String[] args)
+  {
+    Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
+    double[] buf1_context = new double[10];
+    int[] buf2_context = new int[10];
+    for (int i = 0;i < 10 ; ++i)
+    {
+      buf1_context[i] = 1;
+      buf2_context[i] = 2;
+    }
+    Buffer buf1 = new Buffer(ctx, 10 * DirectMemory.DOUBLE_SIZE);
+    Buffer buf2 = new Buffer(ctx, 10 * DirectMemory.INT_SIZE);
+    
+    buf1.mapBuffer(Buffer.WRITE);
+    buf1.writeArray(0, buf1_context);
+    buf1.commitBuffer();
+    
+    buf2.mapBuffer(Buffer.WRITE);
+    buf2.writeArray(0, buf2_context);
+    buf2.commitBuffer();
+    
+    for (int i = 0;i < 10 ; ++i)
+    {
+      buf1_context[i] = 12;
+      buf2_context[i] = 22;
+    }
+    
+    buf1.mapBuffer(Buffer.READ);
+    buf1.readArray(0, buf1_context);
+    buf1.commitBuffer();
+    
+    buf2.mapBuffer(Buffer.READ);
+    buf2.readArray(0, buf2_context);
+    buf2.commitBuffer();
+    
+    System.out.println("hold");
+            
+  }
 }

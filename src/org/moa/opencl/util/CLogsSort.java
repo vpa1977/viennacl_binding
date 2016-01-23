@@ -5,7 +5,7 @@ import org.viennacl.binding.Context;
 import org.viennacl.binding.Kernel;
 
 /** 
- * Interface to the CLOG sorting routine
+ * Interface to the CLOG sorting routine - reference for comparison
  * @author john
  *
  */
@@ -15,20 +15,8 @@ public class CLogsSort extends AbstractUtil{
 	{
 		m_context = context;
 		init();
-		if (!context.hasProgram("clogs_support"))
-		{
-			StringBuffer code = loadKernel("clogs_prepare_buffer.cl");
-			context.add("clogs_support", code.toString());
-		}
-		m_fill_kernel = context.getKernel("clogs_support", "prepare_buffer");
 	}
 	
-	public void prepareOrderKey(Buffer order_key, int size)
-	{
-		m_fill_kernel.set_global_size(0, size);
-		m_fill_kernel.set_arg(0, order_key);
-		m_fill_kernel.invoke();
-	}
 	/**
 	 * 
 	 * @param order_key - temporary buffer containing key identifiers 0.... N
@@ -39,8 +27,6 @@ public class CLogsSort extends AbstractUtil{
 	 */
 	public void sort(Buffer order_key, Buffer key_values,Buffer values, int key_length, int size)
 	{
-		prepareOrderKey(order_key, size);
-		order_key.copyTo(values);
 		nativeSort(order_key, key_values, values, key_length, size);
 	}
 	

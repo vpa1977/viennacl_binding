@@ -12,6 +12,11 @@ __kernel void double2uint(__global double* in, __global  uint* out, const uint s
 	out[id] = (uint)(in[id] * scale);
 }
 
+__kernel void prepare_order_key(__global uint* buffer)
+{
+	buffer[get_global_id(0)] = get_global_id(0);
+}
+
 
 __kernel void normalize_attributes(
 		__global double* in,

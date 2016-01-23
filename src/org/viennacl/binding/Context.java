@@ -11,6 +11,10 @@ public class Context {
 		OPENCL_MEMORY,
 		HSA_MEMORY
 	}
+  
+  public static final Memory DEFAULT_MEMORY = Memory.HSA_MEMORY;
+  
+  
 	public Context(Context.Memory mem_type, String params)
 	{
 		m_mem_type = mem_type;
@@ -59,6 +63,9 @@ public class Context {
 		Kernel kernelObject = new Kernel();
 		return nativeGetKernel(program, name, kernelObject);
 	}
+	
+	public native void finishDefaultQueue();
+	
 
 	
 	public native void release();

@@ -15,6 +15,14 @@ extern "C" {
 #define org_viennacl_binding_Context_HSA_MEMORY 2L
 /*
  * Class:     org_viennacl_binding_Context
+ * Method:    finishDefaultQueue
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_finishDefaultQueue
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_viennacl_binding_Context
  * Method:    release
  * Signature: ()V
  */

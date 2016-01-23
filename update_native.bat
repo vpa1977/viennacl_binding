@@ -11,7 +11,9 @@ javah -cp %CLASSPATH% org.viennacl.binding.Operations
 javah -cp %CLASSPATH% org.viennacl.binding.Buffer
 javah -cp %CLASSPATH% org.viennacl.binding.Queue
 javah -cp %CLASSPATH% org.moa.opencl.util.DoubleMergeSort
+javah -cp %CLASSPATH% org.moa.opencl.util.IntMergeSort
 javah -cp %CLASSPATH% org.moa.opencl.util.FloatMergeSort
 javah -cp %CLASSPATH% org.moa.opencl.util.MortonCode
 javah -cp %CLASSPATH% org.moa.opencl.util.CLogsSort
+javah -cp %CLASSPATH% org.moa.gpu.FJLT
 

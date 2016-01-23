@@ -3,6 +3,15 @@
   <groupId>viennacl-binding</groupId>
   <artifactId>viennacl-binding</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+  
+  <repositories>
+   <repository>
+       <!-- DO NOT set id to "local" because it is reserved by Maven -->
+       <id>lib</id>
+       <url>file://home/bsp/localmaven</url>
+   </repository>
+</repositories>
+
   	<dependencies>
 
 		<dependency>
@@ -16,17 +25,28 @@
 			<artifactId>weka-dev</artifactId>
 			<version>3.7.10</version>
 		</dependency>
-		
-		
-		<dependency>
-			<groupId>nz.ac.waikato.cms.moa</groupId>
-			<artifactId>moa</artifactId>
-			<version>2013.11</version>
-		</dependency>
+    
+    <!-- temporary dependency as i am working without inet connection --> 
+    <dependency>
+      <groupId>moa2014</groupId>
+      <artifactId>moa2014</artifactId>
+      <version>1</version>
+    
+    </dependency>
+    
+		<!-- temporary dependency as i am working without inet connection --> 
 		
 	</dependencies>
   <build>
     <sourceDirectory>src</sourceDirectory>
+    <resources>
+      <resource>
+        <directory>src</directory>
+        <includes>
+          <include>**/*.cl</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>

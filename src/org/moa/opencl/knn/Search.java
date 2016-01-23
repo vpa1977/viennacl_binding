@@ -36,7 +36,7 @@ public abstract class Search  extends AbstractOptionHandler{
 		m_distance_weighting  = mode;
 	}
 	
-	   /**
+	/**
      * Turn the list of nearest neighbors into a probability distribution.
      *
      * @param neighbours the list of nearest neighboring instances

@@ -14,6 +14,7 @@ import moa.classifiers.gpu.zorder.ZOrderTransform;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.tasks.TaskMonitor;
+import org.moa.opencl.util.Operations;
 import weka.core.Instance;
 import weka.core.Instances;
 
@@ -23,6 +24,10 @@ import weka.core.Instances;
 
 //evaluation instances,total train time,total train speed,last train time,last train speed,test time,test speed,classified instances,classifications correct (percent),Kappa Statistic (percent),Kappa Temporal Statistic (percent),model training instances,model serialized size (bytes)
 //10000.0,0.484375,20645.16129032258,0.484375,20645.16129032258,71.140625,1405.6665934548648,100000.0,42.321,0.0,-18.49089937959654,10000.0,0.0
+
+/* 
+ * This algorithm uses a number of z-order curves to generate  
+ */
 public class SimpleZOrderSearch extends Search{
 	
 	private Instances m_dataset;
@@ -41,6 +46,7 @@ public class SimpleZOrderSearch extends Search{
 	private Buffer m_candidates_buffer;
 	private ZOrderItem[] m_z_orders;
 	private DoubleMergeSort m_sort;
+  private Operations m_ops;
 
 	public SimpleZOrderSearch()
 	{
@@ -94,6 +100,7 @@ public class SimpleZOrderSearch extends Search{
 			m_transform = new ZOrderTransform(m_context, instance.dataset().numAttributes(), data.rows());
 			m_candidates_buffer = new Buffer(m_context, (2*K+1) * DirectMemory.INT_SIZE);
 			m_sort = new DoubleMergeSort(m_context, data.rows());
+      m_ops = new Operations(m_context);
 		}
 
 		if (m_z_orders == null)
@@ -127,7 +134,7 @@ public class SimpleZOrderSearch extends Search{
 				m_attribute_types, 
 				m_result_buffer, 
 				m_candidates_buffer);
-		
+		m_ops.prepareOrderKey(m_result_index_buffer, (int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE));
 		m_sort.sort(m_result_buffer, m_result_index_buffer);
 		int[] candidates = new int[K];
 		m_result_index_buffer.mapBuffer(Buffer.READ, 0, K * DirectMemory.INT_SIZE);

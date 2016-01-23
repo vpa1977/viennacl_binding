@@ -10,6 +10,6 @@ public class GlobalContext {
 		return static_context;
 	}
 	
-	private static Context static_context = new Context(Context.Memory.OPENCL_MEMORY, null);
+	private static Context static_context = new Context(Context.DEFAULT_MEMORY, null);
 
 }

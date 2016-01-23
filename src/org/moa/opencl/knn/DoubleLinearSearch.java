@@ -14,6 +14,7 @@ import org.viennacl.binding.DirectMemory;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.tasks.TaskMonitor;
+import org.moa.opencl.util.Operations;
 import weka.core.Instance;
 import weka.core.Instances;
 //WEKA
@@ -37,6 +38,7 @@ public class DoubleLinearSearch extends Search{
 	private Buffer m_attribute_types;
 	private Distance m_distance;
 	private DoubleMergeSort m_sort;
+  private Operations m_ops;
 	private Buffer m_result_index_buffer;
 
 	public DoubleLinearSearch()
@@ -91,6 +93,7 @@ public class DoubleLinearSearch extends Search{
 			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
 			m_sort = new DoubleMergeSort(m_context, data.rows());
+      m_ops = new Operations(m_context);
 		}
 
 		if (m_dirty)
@@ -112,7 +115,7 @@ public class DoubleLinearSearch extends Search{
 				m_max_values, 
 				m_attribute_types, 
 				m_result_buffer);
-		
+		m_ops.prepareOrderKey(m_result_index_buffer, (int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE));
 		m_sort.sort(m_result_buffer, m_result_index_buffer);
 		int[] candidates = new int[K];
 		m_result_index_buffer.mapBuffer(Buffer.READ, 0, K * DirectMemory.INT_SIZE);

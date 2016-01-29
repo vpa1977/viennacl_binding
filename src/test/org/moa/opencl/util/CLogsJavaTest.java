@@ -19,8 +19,8 @@ public class CLogsJavaTest {
 	@Test
 	public void testSortUINT() 
 	{
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
-		CLogsVarKeyJava sort = new CLogsVarKeyJava(ctx, true);
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
+		CLogsVarKeyJava sort = new CLogsVarKeyJava(ctx, false);
 		int size = 100;
 		Buffer values = new Buffer(ctx, size * DirectMemory.INT_SIZE);
 		Buffer keys = new Buffer(ctx, size * DirectMemory.INT_SIZE);
@@ -37,12 +37,12 @@ public class CLogsJavaTest {
 		keys.commitBuffer();
 		for (int i = 0;i < sample.length; i++ )
 			assertEquals(sample[i], i+1);
-
+    System.out.println("Sorted correctly");
 	}
 	
 	@Test
 	public void testCreate() {
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
 		CLogsVarKeyJava sort = new CLogsVarKeyJava(ctx, true);
 		Operations ops = new Operations(ctx);
 		int size = 100;
@@ -97,6 +97,11 @@ public class CLogsJavaTest {
 		assertArrayEquals(test, sortIndices);
 
 	}
+  
+  public static void main(String[] arg)
+  {
+    new CLogsJavaTest().testSortUINT();
+  }
 	
 	
 

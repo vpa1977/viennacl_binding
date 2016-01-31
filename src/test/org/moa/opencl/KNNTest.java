@@ -24,10 +24,10 @@ public class KNNTest {
 		IBk bk = new IBk(5);
 		
 		KNN test = new KNN();
-		test.neighboursNumber.setValue(5);
+		test.kOption.setValue(5);
 		test.prepareForUse();
 		bk.buildClassifier(rtg.getHeader());
-		bk.setWindowSize(test.slidingWindowSize.getValue());
+		bk.setWindowSize(test.slidingWindowSizeOption.getValue());
 		for (int i= 0; i <  1024; ++i)
 		{
 			Instance inst = rtg.nextInstance();

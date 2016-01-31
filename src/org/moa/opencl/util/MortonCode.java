@@ -35,8 +35,9 @@ public class MortonCode extends AbstractUtil {
 	
 	public void computeMortonCode(Buffer output, Buffer source_points, int num_points)
 	{
-		output.fill((byte)0);
-		m_morton_kernel.set_global_size(0,  num_points);
+	//	output.fill((byte)0);
+		m_morton_kernel.set_global_size(0,  ((num_points<<7)>>7) + 128  );
+    m_morton_kernel.set_local_size(0,  128  );
 		m_morton_kernel.set_local_size(1, 1);
 		m_morton_kernel.set_global_size(1, 4);
 

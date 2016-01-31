@@ -112,4 +112,9 @@ public abstract class Search  extends AbstractOptionHandler{
 		m_dirty = true;
 	}
 
+	public void update(Instance inst) {
+		
+		
+	}
+
 }

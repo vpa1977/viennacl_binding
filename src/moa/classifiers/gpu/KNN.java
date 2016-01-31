@@ -3,7 +3,9 @@ package moa.classifiers.gpu;
 
 
 import org.moa.gpu.SlidingWindow;
+import org.moa.opencl.knn.DoubleLinearSearch;
 import org.moa.opencl.knn.Search;
+import org.moa.opencl.knn.SimpleZOrderSearch;
 import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.GlobalContext;
@@ -41,11 +43,16 @@ public class KNN extends AbstractClassifier  {
     public KNN()
     {
     }
-
-    public ClassOption searchMethod = new ClassOption("searchMethod", 'm', "KNN search Method", Search.class, "org.moa.opencl.knn.SimpleZOrderSearch");
+    
+    public MultiChoiceOption nearestNeighbourSearchOption = new MultiChoiceOption(
+            "nearestNeighbourSearch", 'n', "Nearest Neighbour Search to use", new String[]{
+                "DoubleLinearNN", "Z-OrderShift"},
+            new String[]{"Brute force search algorithm for nearest neighbour search. ",
+                "Z-Order shift search algorithm for nearest neighbour search"
+            }, 0);
     		
-    public IntOption neighboursNumber = new IntOption("neighbourNumber", 'n', "Number of neighbours to use", 16, 1, Integer.MAX_VALUE);
-    public IntOption slidingWindowSize = new IntOption("slidingWindowSize", 'b', "Sliding Window Size", 32768, 2, Integer.MAX_VALUE);
+	public IntOption kOption = new IntOption( "k", 'k', "The number of neighbors", 10, 1, Integer.MAX_VALUE);
+    public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'b', "Sliding Window Size", 32768, 2, Integer.MAX_VALUE);
     public MultiChoiceOption distanceWeightingOption = new MultiChoiceOption("distanceWeighting", 'w', "Distance Weighting", 
             new String[]{"none", "similarity", "inverse"}, 
             new String[]{"No distance weighting", "Weight by 1-distance", "Weight by 1/distance"}, 0);
@@ -58,7 +65,12 @@ public class KNN extends AbstractClassifier  {
 		// TODO Auto-generated method stub
 		super.prepareForUseImpl(monitor, repository);
 		m_context = GlobalContext.context();
-		m_search = (Search) searchMethod.materializeObject(monitor, repository);
+		if (nearestNeighbourSearchOption.getChosenIndex() == 0)
+			m_search = new DoubleLinearSearch();
+		if (nearestNeighbourSearchOption.getChosenIndex() == 1)
+			m_search = new SimpleZOrderSearch();
+		
+		
 		
 	}
 
@@ -98,8 +110,8 @@ public class KNN extends AbstractClassifier  {
 
 	@Override
     public void resetLearningImpl() {
-        m_batch_size = slidingWindowSize.getValue();
-        m_k = neighboursNumber.getValue();
+        m_batch_size = slidingWindowSizeOption.getValue();
+        m_k = kOption.getValue();
         m_distance_weighting = distanceWeightingOption.getChosenIndex();
         shutdown();
     }
@@ -123,6 +135,7 @@ public class KNN extends AbstractClassifier  {
     	m_sliding_window.begin(); // make sure buffer is mapped
         m_sliding_window.update(inst); // update buffer
         m_search.markDirty();
+        m_search.update(inst);
         
     }
 

@@ -60,6 +60,7 @@ public class Buffer {
 	{
 		if (m_mapped)
 			throw new RuntimeException("Buffer is being accessed");
+    m_context.finishDefaultQueue();
 		map(mode);
 		m_mapped = true;
 	}
@@ -245,10 +246,5 @@ public class Buffer {
 	private long m_native_context;
 	// readable/writable CPU memory;
 	private long m_cpu_memory;
-
-
-
-
-
 
 }

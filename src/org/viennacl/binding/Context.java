@@ -65,7 +65,7 @@ public class Context {
 	}
 	
 	public native void finishDefaultQueue();
-	
+	public native void submitBarrier(); // workaround - submit a barrier packet to the default queue 
 
 	
 	public native void release();

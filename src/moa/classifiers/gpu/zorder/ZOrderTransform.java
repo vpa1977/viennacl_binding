@@ -1,6 +1,7 @@
 package moa.classifiers.gpu.zorder;
 
 import java.util.Arrays;
+import java.util.Random;
 
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.opencl.util.CLogsSort;
@@ -24,8 +25,9 @@ public class ZOrderTransform {
 	private Buffer m_data_point_buffer;
 	private Buffer m_normalized_data;
 	private Operations m_operations;
-	private Buffer m_temp_sort_buffer;
 	private Buffer m_sorted_code_order;
+	private Buffer m_random_shift;
+	private Random m_random;
 	
 	
 	public ZOrderTransform(Context ctx, int dimensions, int rows)
@@ -39,7 +41,11 @@ public class ZOrderTransform {
 		m_data_point_buffer = new Buffer(ctx, rows * dimensions * DirectMemory.INT_SIZE);
 		m_morton_code_buffer = new Buffer(ctx, rows * dimensions * DirectMemory.INT_SIZE);
 		m_sorted_code_order = new Buffer(ctx, rows*DirectMemory.INT_SIZE);
+		m_random_shift = new Buffer(ctx, dimensions* DirectMemory.INT_SIZE);
+		m_random = new Random(System.currentTimeMillis());
 	}
+	
+	
 	
 	public synchronized ZOrderItem[] findInZOrder(
 			Instances dataset,
@@ -65,16 +71,6 @@ public class ZOrderTransform {
 		byte[] code = produceMortonCode(dataset, instance, min_values, max_values, attribute_map, 1);
 		ZOrderItem item = new ZOrderItem(code, 0, -1, (int)(dataset.numAttributes() * DirectMemory.INT_SIZE ));
 		int position = Arrays.binarySearch(z_order, item);
-	/*	int dp = -1;
-		for (int i = 0; i < z_order.length ; ++i)
-			if (z_order[i].equals(item))
-				dp = i;
-		if (dp != position)
-		{
-			int res = z_order[dp].compareTo(item);
-			System.out.println("!!");
-		}
-		*/	
 		return position;
 	}
 
@@ -85,55 +81,46 @@ public class ZOrderTransform {
 				dataset.numAttributes(), rows);
 		m_operations.doubleToInt32(m_normalized_data, m_data_point_buffer,rows, dataset.numAttributes());
 		
-		/*int[] data_points = new int[rows * dataset.numAttributes()];
-		double[] normalized_data = new double[rows * dataset.numAttributes()];
-		double[] before_norm = new double[rows * dataset.numAttributes()];
-		
-		instance.mapBuffer(Buffer.WRITE);
-		instance.readArray(0, before_norm);
-		instance.commitBuffer();
-		m_normalized_data.mapBuffer(Buffer.WRITE);
-		m_normalized_data.readArray(0, normalized_data);
-		m_normalized_data.commitBuffer();
-		m_data_point_buffer.mapBuffer(Buffer.READ);
-		m_data_point_buffer.readArray(0, data_points);
-		m_data_point_buffer.commitBuffer();
-		*/
-		
 		m_morton_code.computeMortonCode(m_morton_code_buffer, m_data_point_buffer, rows);
-		byte[] code = new byte[(int)(rows*dataset.numAttributes()*DirectMemory.INT_SIZE)];
-		m_morton_code_buffer.mapBuffer(Buffer.READ, 0, rows * dataset.numAttributes() * DirectMemory.INT_SIZE);
-		m_morton_code_buffer.readArray(0,code);
-		m_morton_code_buffer.commitBuffer();
-		return code;
+        byte[] code = new byte[(int)(rows*dataset.numAttributes()*DirectMemory.INT_SIZE)];
+        m_morton_code_buffer.mapBuffer(Buffer.READ, 0, rows * dataset.numAttributes() * DirectMemory.INT_SIZE);
+        m_morton_code_buffer.readArray(0,code);
+        m_morton_code_buffer.commitBuffer();
+        return code;
 	}
 	
+	public byte[] produceRandomShiftMortonCode(Buffer random_shift, Instances dataset, Buffer instance, Buffer min_values, Buffer max_values,
+			Buffer attribute_map, int rows) {
+		m_operations.normalize(instance, m_normalized_data, 
+				min_values, max_values, attribute_map, 
+				dataset.numAttributes(), rows);
+		m_operations.doubleToInt32(m_normalized_data, m_data_point_buffer,rows, dataset.numAttributes());
+		m_operations.shiftByRandomVector(m_data_point_buffer, random_shift, dataset.numAttributes() , m_rows);
+		m_morton_code.computeMortonCode(m_morton_code_buffer, m_data_point_buffer, rows);
+        byte[] code = new byte[(int)(rows*dataset.numAttributes()*DirectMemory.INT_SIZE)];
+        m_morton_code_buffer.mapBuffer(Buffer.READ, 0, rows * dataset.numAttributes() * DirectMemory.INT_SIZE);
+        m_morton_code_buffer.readArray(0,code);
+        m_morton_code_buffer.commitBuffer();
+        return code;
+	}
+	
+	
 
-	public synchronized  ZOrderItem[] createZOrder(Instances dataset, 
-			DenseInstanceBuffer instances,
+	public synchronized  ZOrderItem[] createRandomShiftZOrder(Buffer random_shift, Instances dataset, 
 			Buffer min_values, 
 			Buffer max_values, 
 			Buffer attribute_map, 
 			boolean normalize
 			)
 	{
-		assert(instances.rows() == m_rows);
-		
-		if (normalize)
-		{
-			m_operations.normalize(instances.attributes(), m_normalized_data, 
-					min_values, max_values, attribute_map, 
-					dataset.numAttributes(), instances.rows());
-		}
-		else
-		{
-			instances.attributes().copyTo(m_normalized_data);
-		}
+
+	
 		m_operations.doubleToInt32(m_normalized_data, m_data_point_buffer, m_rows, dataset.numAttributes());
+		m_operations.shiftByRandomVector(m_data_point_buffer, random_shift, dataset.numAttributes() , m_rows);
 		m_morton_code.computeMortonCode(m_morton_code_buffer, m_data_point_buffer, m_rows);
 		
 		m_operations.prepareOrderKey(m_sorted_code_order, m_rows);
-		
+    
 		m_sort.sort(m_sorted_code_order, m_morton_code_buffer, null, (int)(m_src_dimensions*DirectMemory.INT_SIZE), m_rows);
 		
 		byte[] morton_keys = new byte[(int)(m_rows* m_src_dimensions*DirectMemory.INT_SIZE)];
@@ -152,6 +139,59 @@ public class ZOrderTransform {
 			items[i] = new ZOrderItem(morton_keys, (int)(morton_key_positions[i] * m_src_dimensions*DirectMemory.INT_SIZE), morton_key_positions[i], (int)(m_src_dimensions*DirectMemory.INT_SIZE));
 		}
 		return items;
+	}
+  
+  
+  	public synchronized  ZOrderItem[] createRandomShiftZOrderCPU(Buffer random_shift, Instances dataset, 
+			Buffer min_values, 
+			Buffer max_values, 
+			Buffer attribute_map, 
+			boolean normalize
+			)
+	{
+
+	
+		m_operations.doubleToInt32(m_normalized_data, m_data_point_buffer, m_rows, dataset.numAttributes());
+		m_operations.shiftByRandomVector(m_data_point_buffer, random_shift, dataset.numAttributes() , m_rows);
+		m_morton_code.computeMortonCode(m_morton_code_buffer, m_data_point_buffer, m_rows);
+		
+		m_operations.prepareOrderKey(m_sorted_code_order, m_rows);
+		int[] morton_key_positions = new int[m_rows];
+		m_sorted_code_order.mapBuffer(Buffer.READ);
+		m_sorted_code_order.readArray(0, morton_key_positions);
+		m_sorted_code_order.commitBuffer();
+    
+//		m_sort.sort(m_sorted_code_order, m_morton_code_buffer, null, (int)(m_src_dimensions*DirectMemory.INT_SIZE), m_rows);
+		
+		byte[] morton_keys = new byte[(int)(m_rows* m_src_dimensions*DirectMemory.INT_SIZE)];
+		m_morton_code_buffer.mapBuffer(Buffer.READ);
+		m_morton_code_buffer.readArray(0, morton_keys);
+		m_morton_code_buffer.commitBuffer();
+		ZOrderItem[] items = new ZOrderItem[ morton_key_positions.length ];
+		for (int i = 0; i < items.length ; ++i)
+		{
+			items[i] = new ZOrderItem(morton_keys, (int)(morton_key_positions[i] * m_src_dimensions*DirectMemory.INT_SIZE), morton_key_positions[i], (int)(m_src_dimensions*DirectMemory.INT_SIZE));
+		}
+    
+    Arrays.sort(items);
+		return items;
+	}
+
+
+	public void fillNormalizedData(Instances dataset, DenseInstanceBuffer instances, Buffer min_values,
+			Buffer max_values, Buffer attribute_map, boolean normalize) {
+		assert(instances.rows() == m_rows);
+
+		if (normalize)
+		{
+			m_operations.normalize(instances.attributes(), m_normalized_data, 
+					min_values, max_values, attribute_map, 
+					dataset.numAttributes(), instances.rows());
+		}
+		else
+		{
+			instances.attributes().copyTo(m_normalized_data);
+		}
 	}
 	
 	

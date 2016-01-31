@@ -23,6 +23,14 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_finishDefaultQueue
 
 /*
  * Class:     org_viennacl_binding_Context
+ * Method:    submitBarrier
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_submitBarrier
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     org_viennacl_binding_Context
  * Method:    release
  * Signature: ()V
  */

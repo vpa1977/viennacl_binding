@@ -26,6 +26,8 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 	private Kernel m_uint_reduce_kernel;
 	private Kernel m_uint_scatter_kernel;
 	private Kernel m_scatter_kernel;
+  public String program;
+  private Buffer m_tmp_log;
 	private Parameters params;
 	private boolean m_use_value;
 	
@@ -182,10 +184,12 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			}
 			
 			StringBuffer code = loadKernel("radixsort.cl");
-			m_context.add("radixsortcl", defines.append(code).toString());
+      program = defines.append(code).toString();
+			m_context.add("radixsortcl", program);
 		}
 		
 		m_histogram = new Buffer(m_context, Parameters.scanBlocks * radix * DirectMemory.INT_SIZE);
+
 		m_reduce_kernel = m_context.getKernel("radixsortcl", "radixsortReduce_with_raw");
 		
 		m_uint_reduce_kernel = m_context.getKernel("radixsortcl", "radixsortReduce");
@@ -196,6 +200,8 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 		m_scatter_kernel = m_context.getKernel("radixsortcl",  "radixsortScatter_with_raw");
 		m_uint_scatter_kernel =  m_context.getKernel("radixsortcl",  "radixsortScatter");
 		m_scatter_kernel.set_arg(1, m_histogram);
+    
+  
 	}
 	
 	public void sortUINT(Buffer keys,  Buffer values, int size)
@@ -207,13 +213,13 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 		int maxBits = 4 << 3;
 		if (keys.byteSize()/DirectMemory.INT_SIZE != size)
 			throw new RuntimeException("Key buffer too small");
-		if (values.byteSize()/DirectMemory.INT_SIZE != size)
+		if (m_use_value && values.byteSize()/DirectMemory.INT_SIZE != size)
 			throw new RuntimeException("Value data buffer too small");
 		
 		
 		if (m_tmp_keys  == null || m_tmp_keys.byteSize() != size * DirectMemory.INT_SIZE)
 			m_tmp_keys = new Buffer(m_context, size * DirectMemory.INT_SIZE);
-		if (m_tmp_values == null || m_tmp_values.byteSize() != size * DirectMemory.INT_SIZE)
+		if (m_use_value && (m_tmp_values == null || m_tmp_values.byteSize() != size * DirectMemory.INT_SIZE))
 			m_tmp_values = new Buffer(m_context, size * DirectMemory.INT_SIZE);
 
 		Buffer curKeys = keys;
@@ -228,20 +234,18 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 		curKeys.mapBuffer(Buffer.READ);
 		curKeys.readArray(0, pre_arr);
 		curKeys.commitBuffer();
-
+    
+  
 		for (int firstBit = 0; firstBit < maxBits; firstBit += Parameters.radixBits)
 		{
+     
 			enqueueReduceUINT(m_histogram,
 				curKeys, 
 				blockSize, 
 				size, 
 				firstBit);
 			enqueueScan(m_histogram, blocks);
-			/*int[] hist_cpu = new int[Parameters.scanBlocks * (1 << Parameters.radixBits)];
-			m_histogram.mapBuffer(Buffer.READ);
-			m_histogram.readArray(0, hist_cpu);
-			m_histogram.commitBuffer();
-			*/
+		
 			enqueueScatterUINT(nextKeys,
 					nextValues, 
 					curKeys, 
@@ -249,7 +253,7 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 				m_histogram, 
 				blockSize,
 				size, firstBit);
-			
+
 /*			int[] pre_sort = new int[size];
 			int[] post_sort = new int[size];
 			curKeys.mapBuffer(Buffer.READ);
@@ -281,16 +285,13 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 	public void sort(Buffer keys, Buffer key_data, Buffer values, int key_size, int size)
 	{
 		params = new Parameters();
-		
-		
-		
 		//
 		int maxBits = key_size << 3;
-		if (keys.byteSize()/DirectMemory.INT_SIZE != size)
+		if (keys.byteSize()/DirectMemory.INT_SIZE < size)
 			throw new RuntimeException("Key buffer too small");
-		if (key_data.byteSize()/key_size != size)
+		if (key_data.byteSize()/key_size < size)
 			throw new RuntimeException("Key data buffer too small");
-		if (m_use_value && values.byteSize()/DirectMemory.INT_SIZE != size)
+		if (m_use_value && values.byteSize()/DirectMemory.INT_SIZE < size)
 			throw new RuntimeException("Value data buffer too small");
 		
 		
@@ -300,7 +301,7 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			m_tmp_keys = new Buffer(m_context, size * DirectMemory.INT_SIZE);
 			
 		}
-		if (m_tmp_values == null || m_tmp_values.byteSize() != size * DirectMemory.INT_SIZE)
+		if (m_use_value && (m_tmp_values == null || m_tmp_values.byteSize() != size * DirectMemory.INT_SIZE))
 		{
 			m_tmp_values = new Buffer(m_context, size * DirectMemory.INT_SIZE);
 		}
@@ -323,12 +324,13 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 				blockSize, 
 				size, 
 				firstBit);
+      //
 			enqueueScan(m_histogram, blocks);
-			int[] hist_cpu = new int[Parameters.scanBlocks * (1 << Parameters.radixBits)];
-			m_histogram.mapBuffer(Buffer.READ);
-			m_histogram.readArray(0, hist_cpu);
-			m_histogram.commitBuffer();
-			
+		//	int[] hist_cpu = new int[Parameters.scanBlocks * (1 << Parameters.radixBits)];
+		//	m_histogram.mapBuffer(Buffer.READ);
+		//	m_histogram.readArray(0, hist_cpu);
+		//	m_histogram.commitBuffer();
+			m_context.finishDefaultQueue();
 			enqueueScatter(nextKeys,
 					nextValues, 
 					curKeys, 
@@ -339,7 +341,7 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 				blockSize,
 				size, firstBit);
 			
-			int[] pre_sort = new int[size];
+		/*	int[] pre_sort = new int[size];
 			int[] post_sort = new int[size];
 			curKeys.mapBuffer(Buffer.READ);
 			curKeys.readArray(0, pre_sort);
@@ -348,7 +350,7 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			nextKeys.mapBuffer(Buffer.READ);
 			nextKeys.readArray(0, post_sort);
 			nextKeys.commitBuffer();
-
+*/
 			Buffer tmp = nextKeys;
 			nextKeys = curKeys;
 			curKeys = tmp;
@@ -436,15 +438,29 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			int blockSize,
 			int size, 
 			int firstBit) {
+    
+/*    int[] wg_items = new int[512];
+    m_tmp_log = new Buffer(m_context, 512 * DirectMemory.INT_SIZE);
+    m_tmp_log.mapBuffer(Buffer.WRITE);
+    m_tmp_log.readArray(0, wg_items);
+    m_tmp_log.commitBuffer();
+  */  
 		m_uint_reduce_kernel.set_arg(0,  histogram);
 		m_uint_reduce_kernel.set_arg(1,  curKeys);
 		m_uint_reduce_kernel.set_arg(2,  blockSize);
 		m_uint_reduce_kernel.set_arg(3,  size);
 		m_uint_reduce_kernel.set_arg(4,  firstBit);
+    //m_uint_reduce_kernel.set_arg(5, m_tmp_log);
 		int blocks = params.getBlocks(size, blockSize);
 		m_uint_reduce_kernel.set_global_size(0, blocks* Parameters.reduceWorkGroupSize);
 		m_uint_reduce_kernel.set_local_size(0, Parameters.reduceWorkGroupSize);
 		m_uint_reduce_kernel.invoke();
+    
+    
+    /*m_tmp_log.mapBuffer(Buffer.READ);
+    m_tmp_log.readArray(0, wg_items);
+    m_tmp_log.commitBuffer();
+            */
 	}
 	
 	private void enqueueScatterUINT(
@@ -455,12 +471,15 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			Buffer histogram, 
 			int len, int elements, 
 			int firstBit) {
+    
+    
 		m_uint_scatter_kernel.set_arg(0,  outKeys);
 		m_uint_scatter_kernel.set_arg(1, inKeys);
 		m_uint_scatter_kernel.set_arg(2,  histogram);
 		m_uint_scatter_kernel.set_arg(3, (int) len);
 		m_uint_scatter_kernel.set_arg(4, (int) elements);
 		m_uint_scatter_kernel.set_arg(5, (int)firstBit);
+    
 		if (m_use_value)
 		{
 			m_uint_scatter_kernel.set_arg(6,  outValues);
@@ -474,6 +493,7 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 		m_uint_scatter_kernel.set_global_size(0, Parameters.scatterWorkGroupSize * workGroups);
 		m_uint_scatter_kernel.set_local_size(0,  Parameters.scatterWorkGroupSize);
 		m_uint_scatter_kernel.invoke();
+            
 	}
 
 	

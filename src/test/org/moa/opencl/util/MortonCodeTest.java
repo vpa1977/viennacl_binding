@@ -4,7 +4,9 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 import org.moa.opencl.util.CLogsSort;
+import org.moa.opencl.util.CLogsVarKeyJava;
 import org.moa.opencl.util.MortonCode;
+import org.moa.opencl.util.Operations;
 import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
@@ -15,10 +17,15 @@ public class MortonCodeTest {
 	{
 		System.loadLibrary("viennacl-java-binding");
 	}
+  
+  public static void main(String[] args)
+  {
+     new MortonCodeTest().testCreate();
+  }
 	
 	@Test
 	public void testCreate() {
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
 		int num_points = 10000;
 		int num_dimensions = 2;
 		MortonCode morton = new MortonCode(ctx, num_dimensions);
@@ -29,8 +36,8 @@ public class MortonCodeTest {
 		buf.readArray(0,data);
 		buf.commitBuffer();
 		
-		
-		CLogsSort sorter = new CLogsSort(ctx);
+		Operations ops = new Operations(ctx);
+		CLogsVarKeyJava sorter = new CLogsVarKeyJava(ctx, false);
 		
 		Buffer output = new Buffer(ctx, num_points * num_dimensions * DirectMemory.INT_SIZE);
 		Buffer output_cpu = new Buffer(ctx, num_points * num_dimensions * DirectMemory.INT_SIZE);
@@ -50,7 +57,8 @@ public class MortonCodeTest {
 		src.commitBuffer();
 		
 		morton.computeMortonCode(output, src, num_points);
-		
+	
+  
 		data = new byte[num_dimensions*num_points *(int) DirectMemory.INT_SIZE];
 		output.mapBuffer(Buffer.READ);
 		output.readArray(0, data);
@@ -70,12 +78,19 @@ public class MortonCodeTest {
 		
 		Buffer key_indices =new Buffer(ctx, num_points* DirectMemory.INT_SIZE);
 		Buffer value_indices =new Buffer(ctx, num_points* DirectMemory.INT_SIZE);
-		sorter.sort(key_indices, output, value_indices, (int)(num_dimensions * DirectMemory.INT_SIZE), num_points);
+		ops.prepareOrderKey(key_indices, num_points);
+    
+    int[] check = new int[num_points];
+    key_indices.mapBuffer(Buffer.READ);
+    key_indices.readArray(0, check);
+    key_indices.commitBuffer();
+    
+		sorter.sort(key_indices, output, null, (int)(num_dimensions * DirectMemory.INT_SIZE), num_points);
 		
 		int[] result = new int[num_points];
-		value_indices.mapBuffer(Buffer.READ);
-		value_indices.readArray(0, result);
-		value_indices.commitBuffer();
+		key_indices.mapBuffer(Buffer.READ);
+		key_indices.readArray(0, result);
+		key_indices.commitBuffer();
 		
 		for (int i = 0; i < result.length ; ++i)
 		{
@@ -90,4 +105,5 @@ public class MortonCodeTest {
 		
 	}
 
+ 
 }

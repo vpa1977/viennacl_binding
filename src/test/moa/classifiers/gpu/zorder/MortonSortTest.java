@@ -73,7 +73,9 @@ public class MortonSortTest {
 			instances.set(sample, i);
 		}
 		instances.commit();
-		ZOrderItem[] order = transform.createZOrder(dataset, instances, min_values, max_values, attribute_map, false);
+		transform.fillNormalizedData(dataset, instances, min_values, max_values, attribute_map, false);
+		Buffer random_shift = new Buffer(ctx, DirectMemory.INT_SIZE * num_attributes);
+		ZOrderItem[] order = transform.createRandomShiftZOrder(random_shift,dataset,  min_values, max_values, attribute_map, false);
 		for (int i = 0; i < order.length; ++i)
 		{
 			//order[i].print();
@@ -129,7 +131,9 @@ public class MortonSortTest {
 		}
 		instances.commit();
 		minMax.fullMinMaxDouble(dataset, instances, min_buffer, max_buffer);
-		ZOrderItem[] order = transform.createZOrder(dataset, instances, min_buffer, max_buffer, attribute_types, true);
+		transform.fillNormalizedData(dataset, instances, min_buffer, max_buffer, attribute_types, true);
+		Buffer random_shift = new Buffer(ctx, DirectMemory.INT_SIZE * num_attributes);
+		ZOrderItem[] order = transform.createRandomShiftZOrder(random_shift,dataset, min_buffer, max_buffer, attribute_types, true);
 		for (int i = 0; i < order.length; ++i)
 		{
 			assertEquals( order[i].offset()/ (num_attributes * (int)DirectMemory.INT_SIZE), num_rows -i -1);

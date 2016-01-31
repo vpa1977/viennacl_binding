@@ -246,8 +246,9 @@
  */
 KERNEL(REDUCE_WORK_GROUP_SIZE)
 void radixsortReduce(__global uint *out, __global const KEY_T *keys,
-					 uint len, uint total, uint firstBit)
+					 uint len, uint total, uint firstBit/*, __global uint* tmpLog*/)
 {
+  
 	const uint lid = get_local_id(0);
 	const uint group = get_group_id(0);
 	const uint base = group * len;
@@ -258,6 +259,7 @@ void radixsortReduce(__global uint *out, __global const KEY_T *keys,
 	 * reduced to single counts.
 	 */
 	__local uint hist[RADIX][REDUCE_WORK_GROUP_SIZE];
+  
 
 	/* Zero out hist */
 	for (uint i = 0; i < RADIX; i++)
@@ -307,7 +309,11 @@ void radixsortReduce(__global uint *out, __global const KEY_T *keys,
 	 */
 	if (lid < RADIX)
 		out[lid] = hist[lid][0];
+  
+  
 }
+
+
 
 
 /**
@@ -819,28 +825,8 @@ typedef struct
 	KEY_T keys[SCATTER_TILE];
 } ScatterData;
 
-/**
- * Scatter a single section of @a SCATTER_SLICE * @a SCATTER_WORK_SCALE input elements.
- *
- * @param[out]     outKeys        Radix-sorted keys.
- * @param[out]     outValues      Values corresponding to @a outKeys.
- * @param[in]      inKeys         Unsorted keys.
- * @param[in]      inValues       Values corresponding to @a inKeys.
- * @param          start          The first input key to process.
- * @param          end            Upper bound on keys to process.
- * @param          firstBit       First bit forming the radix to sort on.
- * @param[in,out]  wg             Local data storage for the slice.
- * @param          lid            ID of this workitem within the slice.
- * @param          offset         The offset into @a outKeys and @a outValues where the
- *                                elements for digit @a lid should be placed
- *                                (undefined if @a lid >= @ref RADIX).
- * @return         The new value for @a offset (incremented by the digit frequency)
- *
- * @pre
- * - @a firstBit < 32.
- * - @a lid takes on the values 0, 1, ..., @ref SCATTER_SLICE once each.
- */
-inline uint radixsortScatterTile(
+
+uint radixsortScatterTile(
 	__global KEY_T *outKeys,
 #ifdef VALUE_T
 	__global VALUE_T *outValues,
@@ -854,32 +840,31 @@ inline uint radixsortScatterTile(
 	uint firstBit,
 	__local WARP_VOLATILE ScatterData *wg,
 	uint lid,
-	uint offset)
+	uint offset, 
+  uint max_addr, 
+  uint* level0, 
+  uint* l1addr)
 {
-	// Each workitem processes SCATTER_WORK_SCALE consecutive keys.
-	// For each of these, level0 contains the number of previous keys
-	// (within that set) that have the same value.
-	uint level0[SCATTER_WORK_SCALE];
-	// Index into the level1 array corresponding to the ith key processed
-	// by the correct workitem.
-	uint l1addr[SCATTER_WORK_SCALE];
-
+  
 	/* Load keys and decode digits */
 	for (uint i = 0; i < SCATTER_WORK_SCALE; i++)
 	{
 		const uint kidx = lid + i * SCATTER_SLICE;
 		const uint addr = start + kidx;
 		const KEY_T key = (addr < end) ? inKeys[addr] : ~(KEY_T) 0;
-		const uint digit = (key >> firstBit) & (RADIX - 1);
+ 		const uint digit = (key >> firstBit) & (RADIX - 1);
 		wg->keys[kidx] = key;
 		wg->digits[kidx] = digit;
 	}
+  
 
 	/* Zero out level1 array */
 	for (uint i = 0; i < RADIX / 4; i++)
 		wg->hist.level1.i[i * SCATTER_SLICE + lid] = 0;
 
 	fastsync(SCATTER_SLICE);
+
+  
 
 	for (uint i = 0; i < SCATTER_WORK_SCALE; i++)
 	{
@@ -890,6 +875,8 @@ inline uint radixsortScatterTile(
 		wg->hist.level1.c[l1addr[i]] = level0[i] + 1;
 	}
 	fastsync(SCATTER_SLICE);
+
+
 
 	/* Reduce, making sure that we take a stop at RADIX granularity to get digit counts */
 	UPSWEEP();
@@ -935,16 +922,20 @@ inline uint radixsortScatterTile(
 	fastsync(SCATTER_SLICE);
 #endif
 
+
 	/* Scatter results to global memory */
 	for (uint i = 0; i < SCATTER_WORK_SCALE; i++)
 	{
+    const uint in_idx = lid * SCATTER_WORK_SCALE + i; 
 		const uint oidx = lid + i * SCATTER_SLICE;
+    
 		if ((int) oidx < (int) end - (int) start)
 		{
 			const uint sh = wg->shuf[oidx];
 			const uint digit = wg->digits[sh];
 			const uint addr = oidx + wg->bias[digit];
-			outKeys[addr] = wg->keys[sh];
+      outKeys[addr] = wg->keys[sh];
+      
 #ifdef VALUE_T
 			outValues[addr] = wg->values[sh];
 #endif
@@ -955,6 +946,8 @@ inline uint radixsortScatterTile(
 	fastsync(SCATTER_SLICE);
 	return offset;
 }
+
+
 
 /**
  * Scatter keys and values into output arrays.
@@ -972,9 +965,10 @@ inline uint radixsortScatterTile(
  * - @a histogram contains per-slice offsets indicating where the first
  *   key for each digit should be placed for that slice.
  */
+
 KERNEL(SCATTER_WORK_GROUP_SIZE)
-void radixsortScatter(__global KEY_T * restrict outKeys,
-					  __global const KEY_T * restrict inKeys,
+ void radixsortScatter(__global KEY_T *  outKeys,
+					  __global const KEY_T *  inKeys,
 					  __global const uint *histogram,
 					  uint len,
 					  uint total,
@@ -985,45 +979,55 @@ void radixsortScatter(__global KEY_T * restrict outKeys,
 #endif
 					 )
 {
-
-	__local WARP_VOLATILE ScatterData wd[SCATTER_SLICES];
+  __local WARP_VOLATILE ScatterData wd[SCATTER_SLICES];
+	// Each workitem processes SCATTER_WORK_SCALE consecutive keys.
+	// For each of these, level0 contains the number of previous keys
+	// (within that set) that have the same value.
+	uint level0[SCATTER_WORK_SCALE];
+	// Index into the level1 array corresponding to the ith key processed
+	// by the correct workitem.
+	uint l1addr[SCATTER_WORK_SCALE];
+    
 
 	const uint local_id = get_local_id(0);
 	const uint lid = local_id & (SCATTER_SLICE - 1);
 	const uint slice = local_id / SCATTER_SLICE;
 	const uint block = get_group_id(0) * SCATTER_SLICES + slice;
 
-
-	uint offset = 0;
+  uint offset = 0;
 	if (lid < RADIX)
 		offset = histogram[block * RADIX + lid];
 
 	uint start = block * len;
 	uint stop = start + len;
 	uint end = min(stop, total);
-	// Caution - this loop has to be run the same number of times for each workitem,
+    
+		// Caution - this loop has to be run the same number of times for each workitem,
 	 // even if it means that some of them have nothing to do due to end being less
 	 // than start. Without that, barriers will not operate correctly.
 	for (; start < stop; start += SCATTER_TILE)
 	{
-		offset = radixsortScatterTile(
-			outKeys,
-#ifdef VALUE_T
-			outValues,
-#endif
-			inKeys,
-#ifdef VALUE_T
-			inValues,
-#endif
-			start,
-			end,
-			firstBit,
-			&wd[slice],
-			lid,
-			offset);
+      
+       offset = radixsortScatterTile(
+          outKeys,
+    #ifdef VALUE_T
+          outValues,
+    #endif
+          inKeys,
+    #ifdef VALUE_T
+          inValues,
+    #endif
+          start,
+          end,
+          firstBit,
+          &wd[slice],
+          lid,
+          offset, total,
+          level0, l1addr);
 	}
 
-
+  
+ 
 }
 
 /**
@@ -1064,15 +1068,8 @@ inline uint radixsortScatterTile_with_raw(
 	uint firstBit,
 	__local WARP_VOLATILE ScatterData *wg,
 	uint lid,
-	uint offset)
+	uint offset, uint* level0, uint* l1addr)
 {
-	// Each workitem processes SCATTER_WORK_SCALE consecutive keys.
-	// For each of these, level0 contains the number of previous keys
-	// (within that set) that have the same value.
-	uint level0[SCATTER_WORK_SCALE];
-	// Index into the level1 array corresponding to the ith key processed
-	// by the correct workitem.
-	uint l1addr[SCATTER_WORK_SCALE];
 
 		uint byte_offset = firstBit >> 3;
 		uint real_shift = firstBit - (byte_offset << 3);
@@ -1202,6 +1199,13 @@ void radixsortScatter_with_raw(__global KEY_T * restrict outKeys,
 					 )
 {
 	__local WARP_VOLATILE ScatterData wd[SCATTER_SLICES];
+	// Each workitem processes SCATTER_WORK_SCALE consecutive keys.
+	// For each of these, level0 contains the number of previous keys
+	// (within that set) that have the same value.
+	uint level0[SCATTER_WORK_SCALE] = {};
+	// Index into the level1 array corresponding to the ith key processed
+	// by the correct workitem.
+	uint l1addr[SCATTER_WORK_SCALE] = {};
 
 	const uint local_id = get_local_id(0);
 	const uint lid = local_id & (SCATTER_SLICE - 1);
@@ -1238,7 +1242,7 @@ void radixsortScatter_with_raw(__global KEY_T * restrict outKeys,
 			firstBit,
 			&wd[slice],
 			lid,
-			offset);
+			offset, level0, l1addr);
 	}
 
 #undef SCATTER_SLICES

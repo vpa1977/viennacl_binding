@@ -21,6 +21,8 @@ public class OperationsTest {
 	{
 		System.loadLibrary("viennacl-java-binding");
 	}
+  
+  Context ctx = new Context(Context.DEFAULT_MEMORY, null);
 	
 	 private int[] attributeTypes(Instances dataset)
 	    {
@@ -40,7 +42,7 @@ public class OperationsTest {
 	
 	@Test
 	public void testDoubleToInt() {
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		
 		Operations operations = new Operations(ctx);
 		
 		int[] intInit = new int[10];
@@ -77,7 +79,7 @@ public class OperationsTest {
 		Instances sampleDataset = new Instances("sample", attributes, 0);
 		sampleDataset.setClassIndex(0);
 		
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		
 		Operations operations = new Operations(ctx);
 		
 		double[] init = new double[nattr];
@@ -142,5 +144,15 @@ public class OperationsTest {
 		
 		
 	}
+  
+  public static void main(String[] args) 
+  {
+    OperationsTest t = new OperationsTest() ; 
+    for (int i = 0 ; i < 100; ++i)
+    {
+      t.testDoubleToInt();;
+      t.testNormalize();
+    }
+  }
 
 }

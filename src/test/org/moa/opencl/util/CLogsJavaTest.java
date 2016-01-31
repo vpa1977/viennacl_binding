@@ -100,7 +100,8 @@ public class CLogsJavaTest {
   
   public static void main(String[] arg)
   {
-    new CLogsJavaTest().testSortUINT();
+    System.out.println(System.getProperty("java.class.path"));
+    new CLogsJavaTest().testCreate();
   }
 	
 	

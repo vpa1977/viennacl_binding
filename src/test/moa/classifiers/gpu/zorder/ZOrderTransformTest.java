@@ -68,14 +68,14 @@ public class ZOrderTransformTest {
 		for (int i = 0 ;i < 1000; ++i)
 		{
 			int sampleRow = rnd.nextInt(num_rows); 
-			searchTest(num_rows, sampleRow, gen, test_instance, buffer, minMax, min_buffer, max_buffer, m_attribute_types,
+			searchTest(ctx, num_rows, sampleRow, gen, test_instance, buffer, minMax, min_buffer, max_buffer, m_attribute_types,
 					transform, sample);
 		}
 		
 	}
 
 
-	private void searchTest(int num_rows, int sampleRow, RandomTreeGenerator gen, DenseInstanceBuffer test_instance,
+	private void searchTest(Context ctx, int num_rows, int sampleRow, RandomTreeGenerator gen, DenseInstanceBuffer test_instance,
 			DenseInstanceBuffer buffer, MinMax minMax, Buffer min_buffer, Buffer max_buffer, Buffer m_attribute_types,
 			ZOrderTransform transform, Instance sample) {
 		buffer.begin(Buffer.WRITE);
@@ -99,7 +99,9 @@ public class ZOrderTransformTest {
 		
 		
 		minMax.fullMinMaxDouble(gen.getHeader(), buffer, min_buffer, max_buffer);
-		ZOrderItem[] items = transform.createZOrder(gen.getHeader(), buffer, min_buffer, max_buffer, m_attribute_types, true);
+		transform.fillNormalizedData(gen.getHeader(), buffer, min_buffer, max_buffer, m_attribute_types, true);
+		Buffer random_shift = new Buffer(ctx, DirectMemory.INT_SIZE * sample.numAttributes());
+		ZOrderItem[] items = transform.createRandomShiftZOrder(random_shift,gen.getHeader(), min_buffer, max_buffer, m_attribute_types, true);
 		/*assertEquals(items.length, num_rows);
 		ZOrderItem[] clone = new ZOrderItem[items.length];
 		System.arraycopy(items, 0, clone, 0, clone.length);

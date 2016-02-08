@@ -25,7 +25,7 @@ public class MortonCodeTest {
 	
 	@Test
 	public void testCreate() {
-		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
+		Context ctx = new Context(Context.DEFAULT_MEMORY, null);
 		int num_points = 10000;
 		int num_dimensions = 2;
 		MortonCode morton = new MortonCode(ctx, num_dimensions);

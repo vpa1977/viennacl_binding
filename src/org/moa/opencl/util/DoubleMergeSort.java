@@ -23,6 +23,12 @@ public class DoubleMergeSort {
 		nativeSort(input, m_temp, indices, m_dst, (int)(indices.byteSize()/DirectMemory.INT_SIZE));
 	}
 	
+	public Buffer getDstIndex()
+	{
+		return m_dst;
+	}
+	
+	
 	public void  sort(Buffer input, Buffer indices, int max_size)
 	{
 		nativeSort(input, m_temp, indices, m_dst, max_size);

@@ -60,7 +60,8 @@ public class Buffer {
 	{
 		if (m_mapped)
 			throw new RuntimeException("Buffer is being accessed");
-    m_context.finishDefaultQueue();
+//		if (m_context.memoryType() == )
+//			m_context.finishDefaultQueue();
 		map(mode);
 		m_mapped = true;
 	}
@@ -225,14 +226,23 @@ public class Buffer {
 	
 	public void copyTo(Buffer target)
 	{
+		if (target.byteSize() < byteSize())
+			throw new RuntimeException("Target is too small");
 		native_copy(target);
 	}
 
 
+	public void checkedFill(byte b, long length)
+	{
+		if (length > byteSize())
+			throw new RuntimeException("Buffer too small");
+		fill(b,length);
+	}
 
 	
 	/* map all data to cpu */
 	public native void fill(byte b);
+	public native void fill(byte b, long length);
 	private native void map(int mode);
 	private native void map(int mode, long offset, long length);
 	private native void commit();

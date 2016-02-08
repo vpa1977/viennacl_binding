@@ -18,8 +18,16 @@ extern "C" {
  * Method:    fill
  * Signature: (B)V
  */
-JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_fill
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_fill__B
   (JNIEnv *, jobject, jbyte);
+
+/*
+ * Class:     org_viennacl_binding_Buffer
+ * Method:    fill
+ * Signature: (BJ)V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_fill__BJ
+  (JNIEnv *, jobject, jbyte, jlong);
 
 /*
  * Class:     org_viennacl_binding_Buffer

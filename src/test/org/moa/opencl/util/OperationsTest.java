@@ -51,13 +51,15 @@ public class OperationsTest {
 		{
 			init[i] = 0.01 * i;
 		}
-		
+		Buffer attmap = new Buffer(ctx, 10 * DirectMemory.INT_SIZE);
 		Buffer doubleBuffer = new Buffer(ctx, 10 * DirectMemory.DOUBLE_SIZE);
 		Buffer intBuffer = new Buffer(ctx, 10 * DirectMemory.INT_SIZE);
 		doubleBuffer.mapBuffer(Buffer.WRITE);
 		doubleBuffer.writeArray(0, init);
 		doubleBuffer.commitBuffer();
-		operations.doubleToInt32(doubleBuffer, intBuffer, 1, 10);
+		operations.doubleToInt32(doubleBuffer, 
+				attmap,
+				intBuffer, 1, 10);
 		
 		intBuffer.mapBuffer(Buffer.READ);
 		intBuffer.readArray(0, intInit);

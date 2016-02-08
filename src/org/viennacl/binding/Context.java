@@ -12,7 +12,7 @@ public class Context {
 		HSA_MEMORY
 	}
   
-  public static final Memory DEFAULT_MEMORY = Memory.HSA_MEMORY;
+  public static final Memory DEFAULT_MEMORY = Memory.OPENCL_MEMORY;
   
   
 	public Context(Context.Memory mem_type, String params)

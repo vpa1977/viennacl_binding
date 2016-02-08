@@ -52,7 +52,9 @@ __kernel void square_distance_index(
 		}
 		else
 		{
-			point_distance += isnotequal( input[i] , samples[vector_offset + i]);
+			int s = samples[vector_offset + i];
+			int v = input[i];
+			point_distance +=  select(0,1,s!=v);
 		}
 	}
 	result[get_global_id(0)] = point_distance;

@@ -93,7 +93,8 @@ public class DoubleLinearSearch extends Search{
 			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
 			m_sort = new DoubleMergeSort(m_context, data.rows());
-      m_ops = new Operations(m_context);
+			m_ops = new Operations(m_context);
+		
 		}
 
 		if (m_dirty)
@@ -107,6 +108,7 @@ public class DoubleLinearSearch extends Search{
 		m_test_instance.set(instance, 0);
 		m_test_instance.commit();
 		m_min_max.updateMinMaxDouble(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
+		//m_min_max.updateMinMaxDouble(m_dataset, m_test_instance, m_min_values, m_max_values);
 		
 		m_distance.squareDistance(m_dataset, 
 				m_test_instance, 
@@ -115,13 +117,38 @@ public class DoubleLinearSearch extends Search{
 				m_max_values, 
 				m_attribute_types, 
 				m_result_buffer);
+		
+/*		double[] distances = new double[(int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE)];
+		m_result_buffer.mapBuffer(Buffer.READ);
+		m_result_buffer.readArray(0, distances);
+		m_result_buffer.commitBuffer();
+
+		System.out.print("distances opencl ");
+	    for (int i = 0; i < distances.length; ++i)
+	    	System.out.print(" "+ Math.sqrt(distances[i]));
+	    System.out.println();
+*/
+		
 		m_ops.prepareOrderKey(m_result_index_buffer, (int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE));
 		m_sort.sort(m_result_buffer, m_result_index_buffer);
 		int[] candidates = new int[K];
-		m_result_index_buffer.mapBuffer(Buffer.READ, 0, K * DirectMemory.INT_SIZE);
+		m_result_index_buffer.mapBuffer(Buffer.READ, 0, (K) * DirectMemory.INT_SIZE);
 		m_result_index_buffer.readArray(0, candidates);
 		m_result_index_buffer.commitBuffer();
+
+	//	m_sort.getDstIndex().mapBuffer(Buffer.READ);
+	//	m_sort.getDstIndex().readArray(0, candidates);
+	//	m_sort.getDstIndex().commitBuffer();
 		
+		
+	/*	data.begin(Buffer.READ);   
+		System.out.println("Neigh");
+		for (int i = 0; i < candidates.length; ++i)
+		{
+			System.out.println(data.read(candidates[i], m_dataset));
+		}
+		data.commit();
+				*/
 		return makeDistribution(candidates, m_result_buffer, K);
 	}
 	

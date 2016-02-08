@@ -1202,10 +1202,10 @@ void radixsortScatter_with_raw(__global KEY_T * restrict outKeys,
 	// Each workitem processes SCATTER_WORK_SCALE consecutive keys.
 	// For each of these, level0 contains the number of previous keys
 	// (within that set) that have the same value.
-	uint level0[SCATTER_WORK_SCALE] = {};
+	uint level0[SCATTER_WORK_SCALE];
 	// Index into the level1 array corresponding to the ith key processed
 	// by the correct workitem.
-	uint l1addr[SCATTER_WORK_SCALE] = {};
+	uint l1addr[SCATTER_WORK_SCALE];
 
 	const uint local_id = get_local_id(0);
 	const uint lid = local_id & (SCATTER_SLICE - 1);

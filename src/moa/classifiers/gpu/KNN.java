@@ -3,6 +3,7 @@ package moa.classifiers.gpu;
 
 
 import org.moa.gpu.SlidingWindow;
+import org.moa.opencl.knn.DeviceZOrderSearch;
 import org.moa.opencl.knn.DoubleLinearSearch;
 import org.moa.opencl.knn.Search;
 import org.moa.opencl.knn.SimpleZOrderSearch;
@@ -17,6 +18,7 @@ import moa.options.ClassOption;
 import moa.options.IntOption;
 import moa.options.MultiChoiceOption;
 import moa.tasks.TaskMonitor;
+import test.org.moa.opencl.IBk;
 import weka.classifiers.rules.ZeroR;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -40,15 +42,18 @@ public class KNN extends AbstractClassifier  {
     private transient Context m_context;
     private transient Search m_search;
     
+    private IBk testSupport = null;
+    
     public KNN()
     {
     }
     
     public MultiChoiceOption nearestNeighbourSearchOption = new MultiChoiceOption(
             "nearestNeighbourSearch", 'n', "Nearest Neighbour Search to use", new String[]{
-                "DoubleLinearNN", "Z-OrderShift"},
+                "DoubleLinearNN", "Z-OrderShift", "Z-OrderShift (device curves)"},
             new String[]{"Brute force search algorithm for nearest neighbour search. ",
-                "Z-Order shift search algorithm for nearest neighbour search"
+                "Z-Order shift search algorithm for nearest neighbour search",
+                "Z-Order shift search algorithm for nearest neighbour search (device side)"
             }, 0);
     		
 	public IntOption kOption = new IntOption( "k", 'k', "The number of neighbors", 10, 1, Integer.MAX_VALUE);
@@ -69,9 +74,11 @@ public class KNN extends AbstractClassifier  {
 			m_search = new DoubleLinearSearch();
 		if (nearestNeighbourSearchOption.getChosenIndex() == 1)
 			m_search = new SimpleZOrderSearch();
+		if (nearestNeighbourSearchOption.getChosenIndex() == 2)
+			m_search = new DeviceZOrderSearch();
 		
-		
-		
+	//	testSupport = new IBk(m_k);
+		///testSupport.setWindowSize(1000); 
 	}
 
 	@Override
@@ -97,9 +104,16 @@ public class KNN extends AbstractClassifier  {
         }
         m_sliding_window.commit(); // commit all data model changes to gpu
         
+        
         double[] res = null;
 		try {
 			res = m_search.getVotesForInstance(inst, m_sliding_window.model(), m_k);
+		//	double[] supp = testSupport.distributionForInstance(inst);
+		//	for (int i = 0; i < supp.length; ++i)
+		//	{
+		//		if (res[i] != supp[i])
+		//			System.out.println("Break");
+		//	}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -125,13 +139,23 @@ public class KNN extends AbstractClassifier  {
     		m_search.init(m_context, inst.dataset());
     		m_search.setSlidingWindow(m_sliding_window);
     		
+    		
     		try {
+    			//testSupport.buildClassifier(inst.dataset());
 				m_default_classifier.buildClassifier(inst.dataset());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
     	}
+    	
+    	/*try {
+			testSupport.updateClassifier(inst);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}*/
+    	
     	m_sliding_window.begin(); // make sure buffer is mapped
         m_sliding_window.update(inst); // update buffer
         m_search.markDirty();

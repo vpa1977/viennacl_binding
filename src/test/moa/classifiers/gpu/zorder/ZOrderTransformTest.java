@@ -2,6 +2,7 @@ package test.moa.classifiers.gpu.zorder;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -16,6 +17,7 @@ import moa.classifiers.gpu.zorder.ZOrderItem;
 import moa.classifiers.gpu.zorder.ZOrderTransform;
 import moa.streams.generators.RandomTreeGenerator;
 import weka.classifiers.trees.RandomTree;
+import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
 
@@ -41,6 +43,45 @@ public class ZOrderTransformTest {
 	        return attributeTypes;
 	    }
 
+	@Test
+	 public void testSingleCode() 
+	 {
+		int num_rows = 1;
+		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+
+		int attributes = 3;
+		ArrayList<Attribute> att = new ArrayList<Attribute>();
+		for (int i = 0; i< attributes; ++i)
+			att.add( new Attribute(""+i));
+		Instances instances = new Instances("aaa", att, 0);
+		
+		ZOrderTransform transform = new ZOrderTransform(ctx, 3, 10);
+		
+		Buffer attribute_map = new Buffer(ctx, 3);
+		
+		Buffer min_values = new Buffer(ctx, 3 * DirectMemory.DOUBLE_SIZE);
+		Buffer max_values = new Buffer(ctx, 3 * DirectMemory.DOUBLE_SIZE);
+		max_values.mapBuffer(Buffer.WRITE);
+		max_values.writeArray(0,  new double[]{1,1,1});
+		max_values.commitBuffer();
+		
+		Buffer instance1 = new Buffer(ctx, 3 * DirectMemory.DOUBLE_SIZE);
+		instance1.mapBuffer(Buffer.WRITE);
+		instance1.writeArray(0, new double[]{1,1,1});
+		instance1.commitBuffer();
+				
+		byte[] code1 = transform.produceMortonCode(instances, instance1, min_values, max_values, attribute_map, 1);
+		
+		instance1 = new Buffer(ctx, 3 * DirectMemory.DOUBLE_SIZE);
+		instance1.mapBuffer(Buffer.WRITE);
+		instance1.writeArray(0, new double[]{1,1,1});
+		instance1.commitBuffer();
+		
+		
+		byte[] code2 = transform.produceMortonCode(instances, instance1, min_values, max_values, attribute_map, 1);
+
+		System.out.println("");
+	 }
 	 
 	@Test
 	public void testCreate() {

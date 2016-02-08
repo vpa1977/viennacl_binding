@@ -47,7 +47,7 @@ public class DoubleMergeSortTest {
   public static void main(String[] args)
   {
     int sort_size = 600;
-    Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
+    Context ctx = new Context(Context.DEFAULT_MEMORY, null);
 		Operations ops = new Operations(ctx);
 		DoubleMergeSort ms = new DoubleMergeSort(ctx, sort_size);
     double[] input = new double[sort_size];

@@ -16,6 +16,7 @@ import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
 
 import moa.classifiers.gpu.zorder.ZOrderItem;
+import moa.classifiers.gpu.zorder.ZOrderSequence;
 import moa.classifiers.gpu.zorder.ZOrderTransform;
 import moa.classifiers.lazy.neighboursearch.EuclideanDistance;
 import moa.core.ObjectRepository;
@@ -33,10 +34,9 @@ import weka.core.Instances;
 //10000.0,0.484375,20645.16129032258,0.484375,20645.16129032258,71.140625,1405.6665934548648,100000.0,42.321,0.0,-18.49089937959654,10000.0,0.0
 
 /* 
- * This algorithm uses a number of z-order curves to generate  
+ * This algorithm uses a number of z-order curves to generate - 21 sec baseline  
  */
-public class SimpleZOrderSearch extends Search{
-	
+public class DeviceZOrderSearch extends Search{
 	private boolean m_compute_approximation_error =false;
 	private int total_instances = 0;
 	private double ratio = 0;
@@ -54,18 +54,19 @@ public class SimpleZOrderSearch extends Search{
 	private ZOrderTransform m_transform;
 	private Buffer m_result_index_buffer;
 	private Buffer m_candidates_buffer;
-	private ArrayList<ZOrderItem[]> m_z_orders;
+	private ArrayList<ZOrderSequence> m_z_orders;
 	private DoubleMergeSort m_sort;
 	private Operations m_ops;
 	private int m_number_of_curves;
 	private ArrayList<Buffer> m_random_shift_vectors;
+	private ArrayList<Buffer> m_z_order_sequences;
 	private EuclideanDistance m_cpu_distance;
 	private NarySearch m_search;
 
-	public SimpleZOrderSearch()
+	public DeviceZOrderSearch()
 	{
 		m_dirty = true;
-		m_number_of_curves = 1;
+		m_number_of_curves = 4;
 	}
 	
 	public void init(Context ctx, Instances dataset)
@@ -140,13 +141,12 @@ public class SimpleZOrderSearch extends Search{
 		{
 			System.out.println("Building new z-order");
 			m_min_max.fullMinMaxDouble(m_dataset, data, m_min_values, m_max_values);
-			m_z_orders = new ArrayList<ZOrderItem[]>();
+			m_z_orders = new ArrayList<ZOrderSequence>();
 			m_transform.fillNormalizedData(instance.dataset(), data, m_min_values, m_max_values, m_attribute_types, true);
      
 			for (int i = 0; i < m_number_of_curves; ++i)
 			{
-				ZOrderItem[] items = m_transform.createRandomShiftZOrder(m_random_shift_vectors.get(i), instance.dataset(),m_min_values, m_max_values, m_attribute_types, true);
-				m_z_orders.add(items);
+				m_z_orders.add(m_transform.createDeviceRandomShiftZOrder(m_random_shift_vectors.get(i), instance.dataset(),m_min_values, m_max_values, m_attribute_types, true));
 			}
       System.out.println("New z-order done");
 			m_dirty = false;
@@ -161,17 +161,14 @@ public class SimpleZOrderSearch extends Search{
 		HashSet<Integer> possible_candidates = new HashSet<Integer>();
 		int index = 0;
 		int strange = 0;
-		for (ZOrderItem[] list : m_z_orders)
+		for (ZOrderSequence list : m_z_orders)
 		{
       //System.out.println("Next item");
   
-			byte[] code = m_transform.produceRandomShiftMortonCode( m_random_shift_vectors.get(index++), instance.dataset(),m_test_instance.attributes(), m_min_values, m_max_values, m_attribute_types, 1);
-			ZOrderItem item = new ZOrderItem(code, 0, -1, (int)(instance.numAttributes() * DirectMemory.INT_SIZE ));
-			
-			
-			int position = Arrays.binarySearch(list, item);
-			if (position < 0) 
-				position = -position-1;
+			int [] candidates = m_transform.canidatesForInstance(m_search, list, 
+					m_random_shift_vectors.get(index++), instance.dataset(), 
+					m_test_instance.attributes(), m_min_values, m_max_values, m_attribute_types,  
+					K);
 			
 		/*System.out.println("----------------> " );
 			for (int i = 0 ;i < list.length ; ++i)
@@ -181,25 +178,18 @@ public class SimpleZOrderSearch extends Search{
 			System.out.println("<----------------> " );*/ 
 //			if (position == list.length || position == 0)
 //				continue;
-			int min = Math.max(position - K, 0);
-			int max = Math.min(position + K, list.length); 
-      
-      
-			ZOrderItem[] candidates = new ZOrderItem[max - min];
-			System.arraycopy(list, min, candidates, 0, max - min);
-			/*System.out.println("Looking for " + instance);
+		/*	System.out.println("Looking for " + instance);
 			data.begin(Buffer.READ);
-			for (ZOrderItem it : candidates)
+			for (int idx : candidates)
 			{
-				int idx = it.instanceIndex();
 				Instance my_instance = data.read(idx, m_dataset);
-				System.out.print(my_instance.toString() + " ");it.print();
+				System.out.print(my_instance.toString() + " ");
 			}
 			data.commit();
 			*/
 			
-			for (ZOrderItem next: candidates)
-				possible_candidates.add(next.instanceIndex());
+			for (int next: candidates)
+				possible_candidates.add(next);
  
 		}
     //System.out.println("Flush candidates");

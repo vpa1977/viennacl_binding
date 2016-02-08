@@ -76,12 +76,24 @@ public class ZOrderItem implements Comparable<ZOrderItem>{
 		System.out.println();
 		
 	}
+	
+	public String toString() 
+	{
+		StringBuffer res  = new StringBuffer();
+		for (int i = 0; i < m_size ; ++i)
+		{
+			res.append((m_data[m_pos+i]  & 0xFF) + " ");
+		}
+		return res.toString();
+	}
 
 	public byte[] code() {
 		byte[] c = new byte[m_size];
 		System.arraycopy(m_data, m_pos, c, 0, m_size);
 		return c;
 	}
+	
+	
 
 	public int offset() {
 		// TODO Auto-generated method stub

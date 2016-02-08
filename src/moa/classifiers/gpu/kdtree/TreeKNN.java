@@ -52,7 +52,7 @@ public class TreeKNN extends kNN{
 					search = new LinearNNSearch(this.window);  
 				} else {
           if (search == null)
-            search = new KdTreeParallelDistance(m_context,m_buffer, m_indices);
+        	  		search = new KdTreeParallelDistance(m_context,m_buffer, m_indices);
 					search.setInstances(this.window);
 				}	
 				if (this.window.numInstances()>0) {	

@@ -129,15 +129,15 @@ public class ZOrderTransform {
 	}
 	
 	
-	public synchronized  ZOrderSequence createDeviceRandomShiftZOrder(Buffer random_shift, Instances dataset, 
+	public synchronized  ZOrderSequence createDeviceRandomShiftZOrder(Buffer random_shift, int num_attributes, 
 			Buffer min_values, 
 			Buffer max_values, 
 			Buffer attribute_map, 
 			boolean normalize
 			)
 	{
-		m_operations.doubleToInt32(m_normalized_data, attribute_map, m_data_point_buffer, m_rows, dataset.numAttributes());
-		m_operations.shiftByRandomVector(m_data_point_buffer, random_shift, dataset.numAttributes() , m_rows);
+		m_operations.doubleToInt32(m_normalized_data, attribute_map, m_data_point_buffer, m_rows, num_attributes);
+		m_operations.shiftByRandomVector(m_data_point_buffer, random_shift,num_attributes , m_rows);
 		m_morton_code.computeMortonCode(m_morton_code_buffer, m_data_point_buffer, m_rows);
 		m_operations.prepareOrderKey(m_sorted_code_order, m_rows);
 		m_sort.sort(m_sorted_code_order, m_morton_code_buffer, null, (int)(m_src_dimensions*DirectMemory.INT_SIZE), m_rows);
@@ -188,7 +188,7 @@ public class ZOrderTransform {
   
 
 
-	public void fillNormalizedData(Instances dataset, DenseInstanceBuffer instances, Buffer min_values,
+	public void fillNormalizedData(int num_attributes, DenseInstanceBuffer instances, Buffer min_values,
 			Buffer max_values, Buffer attribute_map, boolean normalize) {
 		assert(instances.rows() == m_rows);
 
@@ -196,7 +196,7 @@ public class ZOrderTransform {
 		{
 			m_operations.normalize(instances.attributes(), m_normalized_data, 
 					min_values, max_values, attribute_map, 
-					dataset.numAttributes(), instances.rows());
+					num_attributes, instances.rows());
 		}
 		else
 		{

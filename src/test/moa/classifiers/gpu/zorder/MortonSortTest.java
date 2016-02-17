@@ -73,7 +73,7 @@ public class MortonSortTest {
 			instances.set(sample, i);
 		}
 		instances.commit();
-		transform.fillNormalizedData(dataset, instances, min_values, max_values, attribute_map, false);
+		transform.fillNormalizedData(dataset.numAttributes(), instances, min_values, max_values, attribute_map, false);
 		Buffer random_shift = new Buffer(ctx, DirectMemory.INT_SIZE * num_attributes);
 		ZOrderItem[] order = transform.createRandomShiftZOrder(random_shift,dataset,  min_values, max_values, attribute_map, false);
 		for (int i = 0; i < order.length; ++i)
@@ -131,7 +131,7 @@ public class MortonSortTest {
 		}
 		instances.commit();
 		minMax.fullMinMaxDouble(dataset, instances, min_buffer, max_buffer);
-		transform.fillNormalizedData(dataset, instances, min_buffer, max_buffer, attribute_types, true);
+		transform.fillNormalizedData(dataset.numAttributes(), instances, min_buffer, max_buffer, attribute_types, true);
 		Buffer random_shift = new Buffer(ctx, DirectMemory.INT_SIZE * num_attributes);
 		ZOrderItem[] order = transform.createRandomShiftZOrder(random_shift,dataset, min_buffer, max_buffer, attribute_types, true);
 		for (int i = 0; i < order.length; ++i)

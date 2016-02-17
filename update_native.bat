@@ -7,10 +7,11 @@ javah -cp %CLASSPATH% org.viennacl.binding.Context
 javah -cp %CLASSPATH% org.viennacl.binding.Kernel
 javah -cp %CLASSPATH% org.viennacl.binding.DoubleVector
 javah -cp %CLASSPATH% org.viennacl.binding.Matrix
-javah -cp %CLASSPATH% org.viennacl.binding.Operations
+javah -cp %CLASSPATH% org.moa.opencl.util.Operations
 javah -cp %CLASSPATH% org.viennacl.binding.Buffer
 javah -cp %CLASSPATH% org.viennacl.binding.Queue
 javah -cp %CLASSPATH% org.moa.opencl.util.DoubleMergeSort
+javah -cp %CLASSPATH% org.moa.opencl.util.DoubleBitonicSort
 javah -cp %CLASSPATH% org.moa.opencl.util.IntMergeSort
 javah -cp %CLASSPATH% org.moa.opencl.util.FloatMergeSort
 javah -cp %CLASSPATH% org.moa.opencl.util.MortonCode

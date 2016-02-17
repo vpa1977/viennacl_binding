@@ -24,10 +24,10 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_finishDefaultQueue
 /*
  * Class:     org_viennacl_binding_Context
  * Method:    submitBarrier
- * Signature: ()V
+ * Signature: (Z)V
  */
 JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_submitBarrier
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jboolean);
 
 /*
  * Class:     org_viennacl_binding_Context
@@ -48,10 +48,10 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_init
 /*
  * Class:     org_viennacl_binding_Context
  * Method:    addProgram
- * Signature: (Ljava/lang/String;Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_addProgram
-  (JNIEnv *, jobject, jstring, jstring);
+  (JNIEnv *, jobject, jstring, jstring, jstring);
 
 /*
  * Class:     org_viennacl_binding_Context

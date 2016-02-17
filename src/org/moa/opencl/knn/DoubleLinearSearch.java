@@ -4,6 +4,7 @@ import org.moa.gpu.DenseInstanceBuffer;
 
 
 import org.moa.gpu.SlidingWindow;
+import org.moa.opencl.util.CLogsVarKeyJava;
 import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.DoubleMergeSort;
 import org.moa.opencl.util.MinMax;
@@ -14,6 +15,8 @@ import org.viennacl.binding.DirectMemory;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.tasks.TaskMonitor;
+import test.org.moa.opencl.util.CLogsJavaTest;
+
 import org.moa.opencl.util.Operations;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -37,7 +40,8 @@ public class DoubleLinearSearch extends Search{
 	private Buffer m_result_buffer;
 	private Buffer m_attribute_types;
 	private Distance m_distance;
-	private DoubleMergeSort m_sort;
+	//private DoubleMergeSort m_sort;
+	private CLogsVarKeyJava m_sort;
   private Operations m_ops;
 	private Buffer m_result_index_buffer;
 
@@ -92,7 +96,8 @@ public class DoubleLinearSearch extends Search{
 		{
 			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
-			m_sort = new DoubleMergeSort(m_context, data.rows());
+		//	m_sort = new DoubleMergeSort(m_context, data.rows());
+			m_sort = new CLogsVarKeyJava(m_context, true, "unsigned long", "unsigned int");
 			m_ops = new Operations(m_context);
 		
 		}
@@ -128,9 +133,9 @@ public class DoubleLinearSearch extends Search{
 	    	System.out.print(" "+ Math.sqrt(distances[i]));
 	    System.out.println();
 */
-		
-		m_ops.prepareOrderKey(m_result_index_buffer, (int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE));
-		m_sort.sort(m_result_buffer, m_result_index_buffer);
+		int size = (int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE);
+		m_ops.prepareOrderKey(m_result_index_buffer, size);
+		m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer,size);
 		int[] candidates = new int[K];
 		m_result_index_buffer.mapBuffer(Buffer.READ, 0, (K) * DirectMemory.INT_SIZE);
 		m_result_index_buffer.readArray(0, candidates);

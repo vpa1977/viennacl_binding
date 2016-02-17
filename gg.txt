@@ -1,0 +1,41 @@
+Requested device Spectre
+Found device Hawaii
+Found device AMD A8-7600 Radeon R7, 10 Compute Cores 4C+6G  
+Using device Hawaii
+1	272	91
+2	512	164
+3	597	181
+4	710	242
+5	980	303
+6	2011	364
+7	4084	423
+
+
+
+straight to global
+Requested device Spectre
+Found device Hawaii
+Found device AMD A8-7600 Radeon R7, 10 Compute Cores 4C+6G  
+Using device Hawaii
+1	201	96
+2	483	131
+3	729	223
+4	942	240
+5	1215	301
+6	1575	360
+7	1841	421
+8	1958	481
+9	2336	542
+10	2565	601
+11	2785	663
+12	2979	723
+13	3360	782
+14	3573	843
+15	3831	903
+16	4060	963
+17	4322	1023
+18	4432	1083
+19	4875	1152
+20	4975	1260
+21	5520	1264
+22	5601	1325

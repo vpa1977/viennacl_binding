@@ -118,7 +118,7 @@ public class DirectMemory {
 		if (m_buffer == 0)
 			throw new RuntimeException("Attempt to access null pointer");
 		long read_from = m_direct_memory.ARRAY_INT_BASE_OFFSET;
-		long write_to =   writeIndex * DOUBLE_SIZE;
+		long write_to =   writeIndex*INT_SIZE;
 		m_direct_memory.copyMemory(data, read_from, null, m_buffer+write_to, data.length*m_direct_memory.ARRAY_INT_INDEX_SCALE );		
 	}
 	
@@ -165,6 +165,13 @@ public class DirectMemory {
 		long read_from =   handle;
 		m_direct_memory.copyMemory(null, read_from, dst, write_to, dst.length*Unsafe.ARRAY_FLOAT_INDEX_SCALE );		
 	}
+	
+	public static void readArray(long handle, long[] dst) {
+		long write_to = Unsafe.ARRAY_LONG_BASE_OFFSET;
+		long read_from =   handle;
+		m_direct_memory.copyMemory(null, read_from, dst, write_to, dst.length*Unsafe.ARRAY_LONG_INDEX_SCALE );		
+	}
+
 	
 	public static void readArray(long handle, int[] dst) {
 		long write_to = Unsafe.ARRAY_INT_BASE_OFFSET;

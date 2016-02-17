@@ -4,7 +4,9 @@ package moa.classifiers.gpu;
 
 import org.moa.gpu.SlidingWindow;
 import org.moa.opencl.knn.DeviceZOrderSearch;
+import org.moa.opencl.knn.DoubleCosineSearch;
 import org.moa.opencl.knn.DoubleLinearSearch;
+import org.moa.opencl.knn.FJLTZorderSearch;
 import org.moa.opencl.knn.Search;
 import org.moa.opencl.knn.SimpleZOrderSearch;
 import org.viennacl.binding.Buffer;
@@ -50,10 +52,12 @@ public class KNN extends AbstractClassifier  {
     
     public MultiChoiceOption nearestNeighbourSearchOption = new MultiChoiceOption(
             "nearestNeighbourSearch", 'n', "Nearest Neighbour Search to use", new String[]{
-                "DoubleLinearNN", "Z-OrderShift", "Z-OrderShift (device curves)"},
+                "DoubleLinearNN", "Z-OrderShift", "Z-OrderShift (device curves)", "Double Cosine Similarity search", "Z-Order + FJLT"},
             new String[]{"Brute force search algorithm for nearest neighbour search. ",
                 "Z-Order shift search algorithm for nearest neighbour search",
-                "Z-Order shift search algorithm for nearest neighbour search (device side)"
+                "Z-Order shift search algorithm for nearest neighbour search (device side)",
+                "Double Cosine Similarity search", 
+                "Z-Order random projection + shift search algorithm for nearest neighbour search (device side)",
             }, 0);
     		
 	public IntOption kOption = new IntOption( "k", 'k', "The number of neighbors", 10, 1, Integer.MAX_VALUE);
@@ -63,19 +67,34 @@ public class KNN extends AbstractClassifier  {
             new String[]{"No distance weighting", "Weight by 1-distance", "Weight by 1/distance"}, 0);
 
    
-    
+  	public MultiChoiceOption contextUsedOption = new MultiChoiceOption("contextUsed", 'c', "Context Type",
+			new String[] { "CPU", "OPENCL", "HSA" }, new String[] { "CPU single thread",
+					"OpenCL offload. Use OPENCL_DEVICE Env. variable to select device", "HSA Offload" },
+			0);
+  
 
     @Override
 	public void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository) {
 		// TODO Auto-generated method stub
 		super.prepareForUseImpl(monitor, repository);
-		m_context = GlobalContext.context();
+			if (contextUsedOption.getChosenIndex() == 0)
+			m_context = new Context(Context.Memory.MAIN_MEMORY, null);
+		else if (contextUsedOption.getChosenIndex() == 1)
+			m_context = new Context(Context.Memory.OPENCL_MEMORY, null);
+		else if (contextUsedOption.getChosenIndex() == 2)
+			m_context = new Context(Context.Memory.HSA_MEMORY, null);
+      
 		if (nearestNeighbourSearchOption.getChosenIndex() == 0)
 			m_search = new DoubleLinearSearch();
 		if (nearestNeighbourSearchOption.getChosenIndex() == 1)
 			m_search = new SimpleZOrderSearch();
 		if (nearestNeighbourSearchOption.getChosenIndex() == 2)
 			m_search = new DeviceZOrderSearch();
+		if (nearestNeighbourSearchOption.getChosenIndex() == 3)
+			m_search = new DoubleCosineSearch();
+		if (nearestNeighbourSearchOption.getChosenIndex() == 4)
+			m_search = new FJLTZorderSearch();
+
 		
 	//	testSupport = new IBk(m_k);
 		///testSupport.setWindowSize(1000); 

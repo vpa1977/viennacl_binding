@@ -90,6 +90,12 @@ public class DistanceTest {
 		result.readArray(0, results);
 		result.commitBuffer();
 		double[] ref_results = new double[rows+1];
+		d.cosineDistance(instances, tib, dib,  types, result);
+		result.mapBuffer(Buffer.READ);
+		result.readArray(0, ref_results);
+		result.commitBuffer();
+		
+		
 		for (int i = 0; i  < instances.numInstances(); ++ i)
 		{
 			double ref_dist = reference.distance(instances.get(i),test_instance);

@@ -33,16 +33,13 @@ __kernel void square_distance(__global const VALUE_TYPE* input,
 	int i;
 	for (i = 0; i < attribute_size ; i ++ )
 	{
-		if (attribute_type[i] == atNUMERIC)
-		{
-			width = ( range_max[i] - range_min[i]);
-			val = width > 0 ? (input[i] - range_min[i]) / width  - (samples[ vector_offset + i] - range_min[i])/width : 0;
-			point_distance += val*val;
-		}
-		else
-		{
-			point_distance += isnotequal( input[i] , samples[vector_offset + i]);
-		}
+		int s = samples[vector_offset + i];
+		int v = input[i];
+		width = ( range_max[i] - range_min[i]);
+		val = select(0.0, (input[i] - range_min[i]) / width  - (samples[ vector_offset + i] - range_min[i])/width ,(ulong)( width > 0));
+		double nominal = select(0.0,1.0,(ulong)(s!=v));
+		point_distance += select( nominal, val * val, (ulong)(attribute_type[i] == atNUMERIC));
+
 	}
 	result[get_global_id(0)] = point_distance;
 }

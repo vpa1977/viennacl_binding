@@ -142,11 +142,12 @@ public class DeviceZOrderSearch extends Search{
 			System.out.println("Building new z-order");
 			m_min_max.fullMinMaxDouble(m_dataset, data, m_min_values, m_max_values);
 			m_z_orders = new ArrayList<ZOrderSequence>();
-			m_transform.fillNormalizedData(instance.dataset(), data, m_min_values, m_max_values, m_attribute_types, true);
+			m_transform.fillNormalizedData(instance.numAttributes(), data, m_min_values, m_max_values, m_attribute_types, true);
      
 			for (int i = 0; i < m_number_of_curves; ++i)
 			{
-				m_z_orders.add(m_transform.createDeviceRandomShiftZOrder(m_random_shift_vectors.get(i), instance.dataset(),m_min_values, m_max_values, m_attribute_types, true));
+				m_z_orders.add(m_transform.createDeviceRandomShiftZOrder(m_random_shift_vectors.get(i), 
+                instance.numAttributes(),m_min_values, m_max_values, m_attribute_types, true));
 			}
       System.out.println("New z-order done");
 			m_dirty = false;

@@ -11,18 +11,23 @@ public class Distance extends AbstractUtil {
 	private Kernel m_square_distance_kernel;
 	private Kernel m_square_distance_kernel_index;
 	private Kernel m_s_t;
+	private Kernel m_cosine_distance_kernel;
+	private Kernel m_cosine_distance_norm_kernel;
 
 	public Distance(Context ctx)
 	{
 		if (!ctx.hasProgram("square_distance_double")) 
 			init(ctx);
 		m_square_distance_kernel = ctx.getKernel("square_distance_double", "square_distance");
+		m_cosine_distance_kernel = ctx.getKernel("square_distance_double", "cosine_distance");
+		m_cosine_distance_norm_kernel = ctx.getKernel("square_distance_double","cosine_distance_norm");
 		//m_square_distance_kernel_index= ctx.getKernel("square_distance_double", "square_distance_index");
 		//m_s_t = ctx.getKernel("square_distance_double", "short_test");
 	}
 
 	private void init(Context ctx) {
 		StringBuffer data = loadKernel("distance.cl");
+		data.append(loadKernel("cosine_dist.cl"));
 		ctx.add("square_distance_double", "#define VALUE_TYPE double\n" + data.toString());
 		
 		
@@ -76,5 +81,48 @@ public class Distance extends AbstractUtil {
 		m_square_distance_kernel.set_arg(8, 0);
 		m_square_distance_kernel.invoke();
 	}
+	
+	public void cosineDistanceNorm(Instances dataset,
+			DenseInstanceBuffer test_instance, 
+			DenseInstanceBuffer instance_buffer, 
+			Buffer min_buffer, 
+			Buffer max_buffer, 
+			Buffer attribute_types, 
+			Buffer result 
+			) {
+		int global_size = (int)instance_buffer.rows();
+		m_cosine_distance_norm_kernel.set_global_size(0, global_size);
+		m_cosine_distance_norm_kernel.set_arg(0, test_instance.attributes());
+		m_cosine_distance_norm_kernel.set_arg(1, instance_buffer.attributes());
+		m_cosine_distance_norm_kernel.set_arg(2, min_buffer);
+		m_cosine_distance_norm_kernel.set_arg(3, max_buffer);
+		m_cosine_distance_norm_kernel.set_arg(4, attribute_types);
+		m_cosine_distance_norm_kernel.set_arg(5, result);
+		m_cosine_distance_norm_kernel.set_arg(6, result);
+		m_cosine_distance_norm_kernel.set_arg(7, dataset.numAttributes());
+		m_cosine_distance_norm_kernel.set_arg(8, 0);
+		m_cosine_distance_norm_kernel.invoke();
+	}
+	
+	
+	
+	public void cosineDistance(Instances dataset,
+			DenseInstanceBuffer test_instance, 
+			DenseInstanceBuffer instance_buffer, 
+			Buffer attribute_types, 
+			Buffer result 
+			) {
+		int global_size = (int)instance_buffer.rows();
+		m_cosine_distance_kernel.set_global_size(0, global_size);
+		m_cosine_distance_kernel.set_arg(0, test_instance.attributes());
+		m_cosine_distance_kernel.set_arg(1, instance_buffer.attributes());
+		m_cosine_distance_kernel.set_arg(2, attribute_types);
+		m_cosine_distance_kernel.set_arg(3, result);
+		m_cosine_distance_kernel.set_arg(4, result);
+		m_cosine_distance_kernel.set_arg(5, dataset.numAttributes());
+		m_cosine_distance_kernel.set_arg(6, 0);
+		m_cosine_distance_kernel.invoke();
+	}
+
 
 }

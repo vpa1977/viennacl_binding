@@ -9,6 +9,14 @@ extern "C" {
 #endif
 /*
  * Class:     org_moa_gpu_FJLT
+ * Method:    native_batch_update
+ * Signature: (IILorg/viennacl/binding/Buffer;ILorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;DLorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;)V
+ */
+JNIEXPORT void JNICALL Java_org_moa_gpu_FJLT_native_1batch_1update
+  (JNIEnv *, jobject, jint, jint, jobject, jint, jobject, jobject, jobject, jdouble, jobject, jobject);
+
+/*
+ * Class:     org_moa_gpu_FJLT
  * Method:    native_transform
  * Signature: (Lorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;ILorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;)V
  */

@@ -41,7 +41,13 @@ public class Context {
 	
 	public void add(String program, String text)
 	{
-		addProgram(program, text);
+		addProgram(program, text,null);
+		m_programs.add(program);
+	}
+	
+	public void add(String program, String text, String build_options)
+	{
+		addProgram(program, text, build_options);
 		m_programs.add(program);
 	}
 	
@@ -65,17 +71,18 @@ public class Context {
 	}
 	
 	public native void finishDefaultQueue();
-	public native void submitBarrier(); // workaround - submit a barrier packet to the default queue 
+	public native void submitBarrier(boolean val); // workaround - use barrier between packets. If false, call finishDefaultQueue() to start execution
 
 	
 	public native void release();
 	private native void init(int mem_type, String params);
 	
-	private native void addProgram(String program, String text);
+	private native void addProgram(String program, String text, String build_options);
 	
 	private native Kernel nativeGetKernel(String program, String name, Kernel kernelObject);
 	public native void removeProgram(String string);
 	public native Queue createQueue();
+	public long getNativeContext() { return m_native_context; }
 	
 	private long m_native_context;
 	Context.Memory m_mem_type;

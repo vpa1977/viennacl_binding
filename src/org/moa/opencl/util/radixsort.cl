@@ -227,11 +227,20 @@
 # define WARP_VOLATILE
 #endif
 
+#ifndef VALUE_TRANSFORM
+#define VALUE_TRANSFORM(x) (x)
+#endif
+
+#ifndef BASE_KEY_T
+#define BASE_KEY_T KEY_T
+#endif
+
 /**
  * Shorthand for defining a kernel with a fixed work group size.
  * This is needed to unconfuse Doxygen's parser.
  */
 #define KERNEL(size) __kernel __attribute__((reqd_work_group_size(size, 1, 1)))
+
 
 /**
  * Extract keys and compute histograms for a range.
@@ -245,7 +254,7 @@
  * @todo Rewrite using @c uchar for per-tile counts
  */
 KERNEL(REDUCE_WORK_GROUP_SIZE)
-void radixsortReduce(__global uint *out, __global const KEY_T *keys,
+void radixsortReduce(__global uint *out, __global const BASE_KEY_T *keys,
 					 uint len, uint total, uint firstBit/*, __global uint* tmpLog*/)
 {
   
@@ -270,7 +279,7 @@ void radixsortReduce(__global uint *out, __global const KEY_T *keys,
 	/* Accumulate all chunks into the histogram */
 	for (uint i = base + lid; i < end; i += REDUCE_WORK_GROUP_SIZE)
 	{
-		const KEY_T key = keys[i];
+		const KEY_T key = VALUE_TRANSFORM(keys[i]);
 		const uint bucket = (key >> firstBit) & (RADIX - 1);
 		hist[bucket][lid]++;
 	}
@@ -355,7 +364,7 @@ void radixsortReduce_with_raw(__global uint *out, __global const KEY_T *keys,
 	/* Accumulate all chunks into the histogram */
 	for (uint i = base + lid; i < end; i += REDUCE_WORK_GROUP_SIZE)
 	{
-		const KEY_T key = keys[i];
+		const KEY_T key = VALUE_TRANSFORM(keys[i]);
 				const uint bucket = (raw_data[key * raw_key_size + byte_offset] >> real_shift) & (RADIX - 1);
 				//const uint bucket  = (key >> firstBit)& (RADIX - 1);
 		hist[bucket][lid]++;
@@ -823,15 +832,16 @@ typedef struct
 	uchar shuf[SCATTER_TILE];
 	/// The sort keys
 	KEY_T keys[SCATTER_TILE];
+	BASE_KEY_T key_src[SCATTER_TILE];
 } ScatterData;
 
 
 uint radixsortScatterTile(
-	__global KEY_T *outKeys,
+	__global BASE_KEY_T *outKeys,
 #ifdef VALUE_T
 	__global VALUE_T *outValues,
 #endif
-	__global const KEY_T *inKeys,
+	__global const BASE_KEY_T *inKeys,
 #ifdef VALUE_T
 	__global const VALUE_T *inValues,
 #endif
@@ -851,8 +861,9 @@ uint radixsortScatterTile(
 	{
 		const uint kidx = lid + i * SCATTER_SLICE;
 		const uint addr = start + kidx;
-		const KEY_T key = (addr < end) ? inKeys[addr] : ~(KEY_T) 0;
+		const KEY_T key = (addr < end) ? VALUE_TRANSFORM(inKeys[addr]) : ~(KEY_T) 0;
  		const uint digit = (key >> firstBit) & (RADIX - 1);
+ 		wg->key_src[kidx] = inKeys[addr];
 		wg->keys[kidx] = key;
 		wg->digits[kidx] = digit;
 	}
@@ -934,7 +945,7 @@ uint radixsortScatterTile(
 			const uint sh = wg->shuf[oidx];
 			const uint digit = wg->digits[sh];
 			const uint addr = oidx + wg->bias[digit];
-      outKeys[addr] = wg->keys[sh];
+			outKeys[addr] = wg->key_src[sh];
       
 #ifdef VALUE_T
 			outValues[addr] = wg->values[sh];
@@ -967,8 +978,8 @@ uint radixsortScatterTile(
  */
 
 KERNEL(SCATTER_WORK_GROUP_SIZE)
- void radixsortScatter(__global KEY_T *  outKeys,
-					  __global const KEY_T *  inKeys,
+ void radixsortScatter(__global BASE_KEY_T *  outKeys,
+					  __global const BASE_KEY_T *  inKeys,
 					  __global const uint *histogram,
 					  uint len,
 					  uint total,

@@ -140,7 +140,7 @@ public class ZOrderTransformTest {
 		
 		
 		minMax.fullMinMaxDouble(gen.getHeader(), buffer, min_buffer, max_buffer);
-		transform.fillNormalizedData(gen.getHeader(), buffer, min_buffer, max_buffer, m_attribute_types, true);
+		transform.fillNormalizedData(gen.getHeader().numAttributes(), buffer, min_buffer, max_buffer, m_attribute_types, true);
 		Buffer random_shift = new Buffer(ctx, DirectMemory.INT_SIZE * sample.numAttributes());
 		ZOrderItem[] items = transform.createRandomShiftZOrder(random_shift,gen.getHeader(), min_buffer, max_buffer, m_attribute_types, true);
 		/*assertEquals(items.length, num_rows);

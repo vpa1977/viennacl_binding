@@ -14,6 +14,7 @@ import test.org.moa.opencl.util.CLogsJavaTest;
 public class Run {
   public static void main(String[] args)
   {
+	  
     System.out.println(System.getProperty("java.class.path"));
     moa.gui.GUI.main(args);
   }

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 
 import org.junit.Test;
 import org.moa.gpu.DenseInstanceBuffer;
+import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.MinMax;
 import org.moa.opencl.util.Operations;
 import org.viennacl.binding.Buffer;
@@ -23,6 +24,8 @@ public class OperationsTest {
 	}
   
   Context ctx = new Context(Context.DEFAULT_MEMORY, null);
+  
+  
 	
 	 private int[] attributeTypes(Instances dataset)
 	    {
@@ -39,6 +42,7 @@ public class OperationsTest {
 	         }
 	        return attributeTypes;
 	    }
+	 
 	
 	@Test
 	public void testDoubleToInt() {

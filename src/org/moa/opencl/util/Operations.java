@@ -17,15 +17,20 @@ public class Operations extends AbstractUtil {
 
 	public Operations(Context ctx) {
 		m_context = ctx;
-		if (!m_context.hasProgram("operations"))
-			init(m_context);
-		m_normalize_kernel = m_context.getKernel("operations", "normalize_attributes");
-		m_double2uint_kernel = m_context.getKernel("operations", "double2uint");
-		m_prepare_order_key = m_context.getKernel("operations", "prepare_order_key");
-		m_random_shift_kernel = m_context.getKernel("operations", "random_shift");
+		if (m_context.memoryType() != Context.MAIN_MEMORY)
+		{
+			if (!m_context.hasProgram("operations"))
+				init(m_context);
+			m_normalize_kernel = m_context.getKernel("operations", "normalize_attributes");
+			m_double2uint_kernel = m_context.getKernel("operations", "double2uint");
+			m_prepare_order_key = m_context.getKernel("operations", "prepare_order_key");
+			m_random_shift_kernel = m_context.getKernel("operations", "random_shift");
+		}
 		// m_binary_search_kernel = m_context.getKernel("operations",
 		// "binary_search");
 	}
+	
+	
 
 	public void prepareOrderKey(Buffer order_key, int size) {
 		m_prepare_order_key.set_global_size(0, ((size >> 7) << 7) + 128);
@@ -106,7 +111,8 @@ public class Operations extends AbstractUtil {
 		m_binary_search_kernel.set_arg(4, code_length);
 		m_binary_search_kernel.set_arg(5, globalLowerBound);
 		m_binary_search_kernel.set_arg(6, subdivSize);
-
 	}
+	
+	public native void dense_ax(Buffer matrix, Buffer vector, Buffer output, int rows, int columns);
 
 }

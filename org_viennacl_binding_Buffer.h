@@ -58,8 +58,16 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_commit
  * Method:    native_copy
  * Signature: (Lorg/viennacl/binding/Buffer;)V
  */
-JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_native_1copy
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_native_1copy__Lorg_viennacl_binding_Buffer_2
   (JNIEnv *, jobject, jobject);
+
+/*
+ * Class:     org_viennacl_binding_Buffer
+ * Method:    native_copy
+ * Signature: (Lorg/viennacl/binding/Buffer;JJ)V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_native_1copy__Lorg_viennacl_binding_Buffer_2JJ
+  (JNIEnv *, jobject, jobject, jlong, jlong);
 
 /*
  * Class:     org_viennacl_binding_Buffer
@@ -74,8 +82,16 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_allocate
  * Method:    release
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_release
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_release__
   (JNIEnv *, jobject);
+
+/*
+ * Class:     org_viennacl_binding_Buffer
+ * Method:    release
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_release__J
+  (JNIEnv *, jobject, jlong);
 
 #ifdef __cplusplus
 }

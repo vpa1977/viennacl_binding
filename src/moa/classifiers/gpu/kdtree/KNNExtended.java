@@ -13,7 +13,7 @@ import moa.classifiers.lazy.neighboursearch.NearestNeighbourSearch;
 import weka.core.Instance;
 import weka.core.Instances;
 
-public class TreeKNN extends kNN{
+public class KNNExtended extends kNN{
 	
 	static
 	{
@@ -51,9 +51,10 @@ public class TreeKNN extends kNN{
 				if (this.nearestNeighbourSearchOption.getChosenIndex()== 0) {
 					search = new LinearNNSearch(this.window);  
 				} else {
-          if (search == null)
-        	  		search = new KdTreeParallelDistance(m_context,m_buffer, m_indices);
+					if (search == null)
+        	       		search = new KdTreeParallelDistance(m_context,m_buffer, m_indices);
 					search.setInstances(this.window);
+					
 				}	
 				if (this.window.numInstances()>0) {	
 					Instances neighbours = search.kNearestNeighbours(inst,Math.min(kOption.getValue(),this.window.numInstances()));

@@ -88,7 +88,7 @@ public class KernelParameterTest {
     buf.writeArray(0, test);
     buf.commitBuffer();
     
-    vk.sortUINT(buf, buf, 512);
+    vk.sortFixedBuffer(buf, buf, 512);
     
     sample.set_global_size(0, 3 * 128);
     sample.set_local_size(0, 128);

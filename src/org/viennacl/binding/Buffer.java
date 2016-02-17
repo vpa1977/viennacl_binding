@@ -7,11 +7,13 @@ public class Buffer {
 	public static final int READ = 2;
 	public static final int READ_WRITE = 3;
 	private Context m_context;
+	private long m_context_ptr;
 	private long m_byte_size;
 	private int m_memory_type;
 	private int m_mode;
 	private Queue m_queue;
 	private boolean m_mapped;
+	private Exception alloc_location;
 	
 	public Buffer(Context ctx, long size, int mode, Queue q)
 	{
@@ -21,28 +23,20 @@ public class Buffer {
 		m_byte_size = size;
 		m_queue = q;
 		m_mapped = false;
+		m_context_ptr = ctx.getNativeContext();
+		alloc_location = new Exception();
 		allocate();
 	}
 
 	
 	public Buffer(Context ctx, long size, int mode)
 	{
-		m_mode = mode;
-		m_context = ctx;
-		m_memory_type = ctx.memoryType();
-		m_byte_size = size;
-		m_mapped = false;
-		allocate();
+		this(ctx, size, mode, null);
 		
 	}
 	public Buffer(Context ctx, long size)
 	{
-		m_mode = READ_WRITE;
-		m_context = ctx;
-		m_memory_type = ctx.memoryType();
-		m_byte_size = size;
-		m_mapped = false;
-		allocate();
+		this(ctx, size, READ_WRITE, null);
 	}
 	
 	public long handle()
@@ -52,7 +46,14 @@ public class Buffer {
 	
 	@Override
 	protected void finalize() throws Throwable {
-		release();
+		if (m_cpu_memory != 0)
+		{
+			System.out.println("Releasing a mapped buffer. Should not");
+			alloc_location.printStackTrace();
+		}
+		if (m_context == null)
+			System.out.println("Releasing a buffer without context. Should not");
+		release(m_context_ptr);
 	}
 	
 	
@@ -60,8 +61,8 @@ public class Buffer {
 	{
 		if (m_mapped)
 			throw new RuntimeException("Buffer is being accessed");
-//		if (m_context.memoryType() == )
-//			m_context.finishDefaultQueue();
+		if (m_context.memoryType() == Context.HSA_MEMORY)
+			m_context.finishDefaultQueue();
 		map(mode);
 		m_mapped = true;
 	}
@@ -70,6 +71,8 @@ public class Buffer {
 	{
 		if (m_mapped)
 			throw new RuntimeException("Buffer is being accessed");
+		if (offset + length > byteSize())
+			throw new RuntimeException("Buffer overrun");
 		map(mode, offset, length);
 		m_mapped = true;
 	}
@@ -146,13 +149,13 @@ public class Buffer {
 
 
 	public void writeArray(long writeIndex, double[] data) {
-		long len = writeIndex + data.length * DirectMemory.DOUBLE_SIZE;
+		long len = (writeIndex + data.length) * DirectMemory.DOUBLE_SIZE;
 		runtimeCheck(len);
 		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
 	}
 	
 	public void writeArray(long m_buffer, long writeIndex, double[] data, long length) {
-		long len = writeIndex + length * DirectMemory.DOUBLE_SIZE;
+		long len =( writeIndex + length) * DirectMemory.DOUBLE_SIZE;
 		runtimeCheck(len);
 		if (length > data.length)
 			throw new RuntimeException("length >>> data.length");
@@ -162,13 +165,13 @@ public class Buffer {
 	
 	public void writeArray(long writeIndex, int[] data)
 	{
-		long len = writeIndex + data.length * DirectMemory.INT_SIZE;
+		long len = (writeIndex + data.length) * DirectMemory.INT_SIZE;
 		runtimeCheck(len);
 		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
 	}
 	
 	public void writeArray(int writeIndex, long[] data) {
-		long len = writeIndex + data.length * DirectMemory.LONG_SIZE;
+		long len = (writeIndex + data.length) * DirectMemory.LONG_SIZE;
 		runtimeCheck(len);
 		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
 	}
@@ -192,10 +195,16 @@ public class Buffer {
 		DirectMemory.readArray(m_cpu_memory + handle, dst);
 	}
 	
-	public void readArray(int handle, int[] dst) {
+	public void readArray(long handle, int[] dst) {
 		runtimeCheck(handle + dst.length * DirectMemory.INT_SIZE);
 		DirectMemory.readArray(m_cpu_memory + handle, dst);
 	}
+	
+	public void readArray(long handle,  long[] dst) {
+		runtimeCheck(handle + dst.length * DirectMemory.LONG_SIZE);
+		DirectMemory.readArray(m_cpu_memory + handle, dst);
+	}
+	
 	public void readArray(int handle, byte[] dst) {
 		runtimeCheck(handle + dst.length);
 		DirectMemory.readArray(m_cpu_memory + handle, dst);
@@ -249,8 +258,11 @@ public class Buffer {
 	
 	/* gpu->gpu buffer copy */
 	private native void native_copy(Buffer cloned);
+	private native void native_copy(Buffer cloned, long src_offset, long length);
 	private native void allocate();
-	private native void release();
+	// use with care - will work only for opencl implementations.
+	public synchronized native void release(); // public release of the buffer data
+	private synchronized native void release(long context_ptr); // private release from finalize, using cached context
 	
 	// native vector context - contains handles to GPU memory
 	private long m_native_context;

@@ -30,7 +30,7 @@ public class CLogsJavaTest {
 		keys.mapBuffer(Buffer.WRITE);
 		keys.writeArray(0,  sample);
 		keys.commitBuffer();
-		sort.sortUINT(keys, values, size);
+		sort.sortFixedBuffer(keys, values, size);
 		
 		keys.mapBuffer(Buffer.READ);
 		keys.readArray(0,  sample);

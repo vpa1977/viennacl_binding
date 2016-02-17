@@ -141,7 +141,7 @@ public class SimpleZOrderSearch extends Search{
 			System.out.println("Building new z-order");
 			m_min_max.fullMinMaxDouble(m_dataset, data, m_min_values, m_max_values);
 			m_z_orders = new ArrayList<ZOrderItem[]>();
-			m_transform.fillNormalizedData(instance.dataset(), data, m_min_values, m_max_values, m_attribute_types, true);
+			m_transform.fillNormalizedData(instance.numAttributes(), data, m_min_values, m_max_values, m_attribute_types, true);
      
 			for (int i = 0; i < m_number_of_curves; ++i)
 			{

@@ -170,10 +170,10 @@ __kernel void morton_code_group2(__global uchar* result,
 						uint byte =  (point_value >> depth) & 0xFF;
 						uint offset = d* dimensions * BYTE_COUNT + byte * dimensions;
 						uint l_offset = offset/8;
-						result_buffer[pos] |= lookup_as_long[l_offset+ pos]; // 
+						result_buffer[get_local_id(0)] |= lookup_as_long[l_offset+ pos]; // 
 						barrier(CLK_LOCAL_MEM_FENCE);
 					}
-					result[ lr_offset + pos ] = result_buffer[pos]
+					result[ lr_offset + pos ] = result_buffer[get_local_id(0)]
 				}
 				// this should no be running - the dimensions should be even
 				for (int pos =byte_pos + get_local_id(0) ; pos < dimensions;  pos += get_local_size(0))

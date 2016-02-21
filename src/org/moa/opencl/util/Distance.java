@@ -59,6 +59,7 @@ public class Distance extends AbstractUtil {
 		m_square_distance_kernel.set_arg(6, result);
 		m_square_distance_kernel.set_arg(7, dataset.numAttributes());
 		m_square_distance_kernel.set_arg(8, 1);
+		m_square_distance_kernel.set_arg(9, 0);
 		m_square_distance_kernel.invoke();
 	}
 	

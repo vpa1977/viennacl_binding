@@ -69,7 +69,7 @@ public class FJLTZorderSearch extends Search{
 	public FJLTZorderSearch()
 	{
 		m_dirty = true;
-		m_number_of_curves = 8;
+		m_number_of_curves = 16;
 	}
 	
 	public void init(Context ctx, Instances dataset)
@@ -177,6 +177,8 @@ public class FJLTZorderSearch extends Search{
 					m_random_shift_vectors.get(index++), 
 					m_test_instance.attributes(), m_min_values, m_max_values, m_attribute_types,  
 					K);
+			if (candidates.length < K)
+				System.out.println("error");
 			
 		/*System.out.println("----------------> " );
 			for (int i = 0 ;i < list.length ; ++i)
@@ -301,6 +303,9 @@ public class FJLTZorderSearch extends Search{
 		
 		}
 		//System.out.println("Done");
+		if (cnd_items.length == 1)
+			// a bug but ignore it for now
+			return new double[K];
 		return makeDistribution(nearest_k, cnd_items, m_result_buffer, K);
     
 	}

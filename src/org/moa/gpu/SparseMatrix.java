@@ -7,13 +7,14 @@ import org.viennacl.binding.DirectMemory;
 
 public class SparseMatrix {
 	
-	private int m_entries_in_batch;
 	protected Buffer m_column_data;
+	private int m_columns;
 	
 	protected Context m_context;
 	
 	 protected Buffer m_elements;
 
+	private int m_entries_in_batch;
 	protected Kind m_kind;
 	protected boolean m_mapped;
 	protected int m_mode;
@@ -25,6 +26,8 @@ public class SparseMatrix {
 	 * position in the row jumper buffer
 	 */
 	protected int m_row;
+	protected int m_row_block_num;
+	private Buffer m_row_blocks;
 	protected Buffer m_row_jumper;
 	/** 
 	 * position in the elements buffer
@@ -32,9 +35,6 @@ public class SparseMatrix {
 	protected int m_row_position;
 	protected long m_total_rows;
 	protected long m_value_size;
-	protected int m_row_block_num;
-	private Buffer m_row_blocks;
-	private int m_columns;
 	public SparseMatrix(Kind kind, Context ctx, int rows, int columns, int total_elements)
 	{
 		m_kind = kind;
@@ -44,7 +44,8 @@ public class SparseMatrix {
 		if (kind == Kind.DOUBLE_BUFFER)
 			m_value_size = DirectMemory.DOUBLE_SIZE;
 		else
-			throw new RuntimeException("value size ... ");
+		if (kind == Kind.FLOAT_BUFFER)
+			m_value_size = DirectMemory.FLOAT_SIZE;
 		m_total_rows = rows;
         m_row_jumper = new Buffer(m_context, (rows+1) * DirectMemory.INT_SIZE, Buffer.READ_WRITE);
         m_row_blocks = new Buffer(m_context, (rows+1) * DirectMemory.INT_SIZE, Buffer.READ_WRITE); // 1 block per row... resize if needed.
@@ -84,14 +85,23 @@ public class SparseMatrix {
     	m_row_jumper.commitBuffer();
     	m_mapped = false;
     }
+	public int getColumnCount() {
+		return m_columns;
+	}
 	public Buffer getColumnIndices() {
 		return m_column_data;
 	}
 	public Buffer getElements() {
 		return m_elements;
 	}
+
 	public Kind getKind() {
 		return m_kind;
+	}
+
+	public int getRowBlockNum()
+	{
+		return m_row_block_num;
 	}
 
 	public Buffer getRowBlocks() {
@@ -101,7 +111,13 @@ public class SparseMatrix {
 	public Buffer getRowJumper() {
 		return m_row_jumper;
 	}
-
+	
+	
+	public int getRowPostion() {
+		// TODO Auto-generated method stub
+		return m_row_position;
+	}
+	
 	/**
 	 * Reallocate sparse portion of data
 	 * @param context
@@ -112,7 +128,6 @@ public class SparseMatrix {
 	    m_elements = new Buffer(context, byte_size, Buffer.READ_WRITE);
 	    m_column_data = new Buffer(context, number_of_elements* DirectMemory.INT_SIZE);
 	}
-
 	protected void resize() {
 		int new_size = (int)(m_number_of_elements * 1.5);
 		Buffer old_elements = m_elements;
@@ -133,13 +148,6 @@ public class SparseMatrix {
 		old_elements.release();
 		old_columns.release();
 	}
-	
-	
-	public int getRowBlockNum()
-	{
-		return m_row_block_num;
-	}
-	
 	protected void updateRowBlockBuffer(int entries_in_row)
 	{
 		if (m_row_block_num == 0)
@@ -171,12 +179,11 @@ public class SparseMatrix {
 		}
 		
 	}
-	public int getColumnCount() {
-		return m_columns;
-	}
-	public int getRowPostion() {
-		// TODO Auto-generated method stub
-		return m_row_position;
+	public void reset() {
+        m_row_block_num = 0;
+        m_entries_in_batch = 0;
+        m_row = 0;
+		
 	}
 	
 }

@@ -8,7 +8,7 @@ import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
 
-public class DenseInstanceBuffer {
+public class DenseInstanceBuffer implements UnitOfWork{
 	
 	public enum Kind
 	{
@@ -25,8 +25,28 @@ public class DenseInstanceBuffer {
     private Buffer m_attribute_values_buffer;
     private Buffer m_weights;
     private long m_value_size;
+    private int m_current_row;
     private Kind m_kind;
 
+    /**
+     * 
+     * @param context
+     * @param rows
+     * @param numAttributes
+     * @param mode - kernel mode (Buffer.READ - read-only);
+     */
+    public DenseInstanceBuffer(Context context, int rows, int numAttributes, int mode) {
+    	m_kind = Kind.DOUBLE_BUFFER;
+    	m_value_size = DirectMemory.DOUBLE_SIZE;
+        m_rows = rows;
+        long byte_size = rows * numAttributes * m_value_size;
+        m_number_of_attributes = numAttributes;
+        m_attribute_values_buffer = new Buffer(context, byte_size, mode);
+        m_class_buffer =  new Buffer(context, m_rows * m_value_size, mode);
+        m_weights = new Buffer(context, m_rows * m_value_size, mode);
+        m_current_row = 0;
+    	
+    }
     public DenseInstanceBuffer(Context context, int rows, int numAttributes) {
     	m_kind = Kind.DOUBLE_BUFFER;
     	m_value_size = DirectMemory.DOUBLE_SIZE;
@@ -36,6 +56,22 @@ public class DenseInstanceBuffer {
         m_attribute_values_buffer = new Buffer(context, byte_size, Buffer.READ_WRITE);
         m_class_buffer =  new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
         m_weights = new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
+        m_current_row = 0;
+    }
+    
+    public DenseInstanceBuffer(Kind k, Context context, int rows, int numAttributes) {
+    	m_kind = k;
+    	if (k == Kind.DOUBLE_BUFFER)
+    		m_value_size = DirectMemory.DOUBLE_SIZE;
+    	else
+    		m_value_size = DirectMemory.FLOAT_SIZE;
+        m_rows = rows;
+        long byte_size = rows * numAttributes * m_value_size;
+        m_number_of_attributes = numAttributes;
+        m_attribute_values_buffer = new Buffer(context, byte_size, Buffer.READ_WRITE);
+        m_class_buffer =  new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
+        m_weights = new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
+        m_current_row = 0;
     }
     
     public Kind getKind() 
@@ -47,15 +83,30 @@ public class DenseInstanceBuffer {
         if (pos >= m_rows) {
             throw new ArrayIndexOutOfBoundsException(pos);
         }
-        long writeIndex = pos * m_number_of_attributes;
+        int writeIndex =(int) (pos * m_number_of_attributes);
 
         DenseInstanceAccess ins = new DenseInstanceAccess(inst);
         double[] data = ins.values();
-        int classIndex = inst.classIndex();
+    	int classIndex = inst.classIndex();
+    	long offset = (writeIndex + classIndex) * m_value_size;
+        
+        if (m_kind == Kind.FLOAT_BUFFER)
+        {
+        	float[] copy = new float[data.length];
+        	for (int j = 0; j < copy.length; ++j)
+        		copy[j] = (float)data[j];
+            m_attribute_values_buffer.writeArray(writeIndex, copy);
+            m_attribute_values_buffer.write(offset, (float)0);// zero out class attribute
+
+        }
+        else
+        {
+            m_attribute_values_buffer.writeArray(writeIndex, data);
+            m_attribute_values_buffer.write(offset, (double)0);// zero out class attribute
+        }
+        
         //DirectMemory.writeArray(attribute_handle, writeIndex, data); // write instances
-        long offset = (writeIndex + classIndex) * m_value_size;
-        m_attribute_values_buffer.writeArray(writeIndex, data);
-        m_attribute_values_buffer.write(offset, (double)0);// zero out class attribute
+        
         m_class_buffer.write(pos * m_value_size, inst.classValue()); 
         m_weights.write(pos * m_value_size, inst.weight());
     }
@@ -64,10 +115,20 @@ public class DenseInstanceBuffer {
         double[] attribute_values = new double[(int)m_number_of_attributes];
         double weightValue = m_weights.read(pos*m_value_size);
         double classValue = m_class_buffer.read(pos * m_value_size);
-        m_attribute_values_buffer.readArray(pos * m_number_of_attributes * m_value_size,attribute_values);
+        if (m_kind == Kind.DOUBLE_BUFFER)
+        	m_attribute_values_buffer.readArray(pos * m_number_of_attributes * m_value_size,attribute_values);
+        else
+        {
+        	float[] copy = new float[attribute_values.length];
+        	m_attribute_values_buffer.readArray(pos * m_number_of_attributes * m_value_size,copy);
+        	for (int j = 0; j < copy.length; ++j)
+        		attribute_values[j] = copy[j];
+        }
+        
         DenseInstance instance = new DenseInstance(weightValue,attribute_values);
         instance.setDataset(dataset);
         instance.setClassValue(classValue);
+        
         return instance;
     }
 
@@ -95,9 +156,11 @@ public class DenseInstanceBuffer {
         return m_attribute_values_buffer.handle();
     }
 
-    public long classes() {
-        return m_class_buffer.handle();
+    public Buffer classes() {
+        return m_class_buffer;
     }
+    
+    
 
 
 	public double classValueOf(int pos) {
@@ -135,7 +198,20 @@ public class DenseInstanceBuffer {
 		commit();
 		
 	}
+	
 
+	@Override
+	public boolean append(Instance inst) {
+		if (m_current_row == m_rows)
+			return false;
+		set(inst, m_current_row);
+		m_current_row++;
+		return true;
+	}
+	public void reset()
+	{
+		m_current_row = 0;
+	}
 
 
 }

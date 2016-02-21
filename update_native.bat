@@ -17,4 +17,4 @@ javah -cp %CLASSPATH% org.moa.opencl.util.FloatMergeSort
 javah -cp %CLASSPATH% org.moa.opencl.util.MortonCode
 javah -cp %CLASSPATH% org.moa.opencl.util.CLogsSort
 javah -cp %CLASSPATH% org.moa.gpu.FJLT
-
+javah -cp %CLASSPATH% org.moa.opencl.sgd.Multinominal

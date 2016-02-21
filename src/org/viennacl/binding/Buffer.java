@@ -176,6 +176,12 @@ public class Buffer {
 		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
 	}
 	
+	public void writeArray(int writeIndex, float[] data) {
+		long len = (writeIndex + data.length) * DirectMemory.FLOAT_SIZE;
+		runtimeCheck(len);
+		DirectMemory.writeArray(m_cpu_memory, writeIndex, data);
+	}
+	
 	public void writeArray(int writeIndex, byte[] data) {
 		long len = writeIndex + data.length;
 		runtimeCheck(len);
@@ -248,6 +254,11 @@ public class Buffer {
 		fill(b,length);
 	}
 
+	public void copyTo(Buffer target, int offset) {
+		if (target.byteSize() - offset  < byteSize())
+			throw new RuntimeException("Buffer too small");
+		native_copy_to(target, offset);
+	}
 	
 	/* map all data to cpu */
 	public native void fill(byte b);
@@ -258,6 +269,7 @@ public class Buffer {
 	
 	/* gpu->gpu buffer copy */
 	private native void native_copy(Buffer cloned);
+	private native void native_copy_to(Buffer target, long target_offset);
 	private native void native_copy(Buffer cloned, long src_offset, long length);
 	private native void allocate();
 	// use with care - will work only for opencl implementations.
@@ -268,5 +280,7 @@ public class Buffer {
 	private long m_native_context;
 	// readable/writable CPU memory;
 	private long m_cpu_memory;
+
+
 
 }

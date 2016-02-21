@@ -49,6 +49,7 @@ public class HingeGradient extends Gradient {
 	public Buffer computeGradient(Buffer classValues, SparseMatrix minibatch, Buffer weights) {
 		
 		m_matrix_mult.mult(minibatch, weights, m_factors_buffer);
+		
 		m_hinge_kernel.set_local_size(0, 256);
 		m_hinge_kernel.set_global_size(0, 256 *  minibatch.getRowBlockNum());
 		m_hinge_kernel.set_arg(0, classValues);

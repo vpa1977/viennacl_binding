@@ -10,6 +10,7 @@ import org.viennacl.binding.Kernel;
 public class Operations extends AbstractUtil {
 	private Context m_context;
 	private Kernel m_normalize_kernel;
+  private Kernel m_normalize_kernel_float;
 	private Kernel m_double2uint_kernel;
 	private Kernel m_prepare_order_key;
 	private Kernel m_random_shift_kernel;
@@ -21,6 +22,7 @@ public class Operations extends AbstractUtil {
 		{
 			if (!m_context.hasProgram("operations"))
 				init(m_context);
+      m_normalize_kernel_float = m_context.getKernel("operations", "normalize_attributes_float");
 			m_normalize_kernel = m_context.getKernel("operations", "normalize_attributes");
 			m_double2uint_kernel = m_context.getKernel("operations", "double2uint");
 			m_prepare_order_key = m_context.getKernel("operations", "prepare_order_key");
@@ -33,8 +35,8 @@ public class Operations extends AbstractUtil {
 	
 
 	public void prepareOrderKey(Buffer order_key, int size) {
-		m_prepare_order_key.set_global_size(0, ((size >> 7) << 7) + 128);
-		m_double2uint_kernel.set_local_size(0, 128);
+		m_prepare_order_key.set_global_size(0, 128*(size/128+1));
+		m_prepare_order_key.set_local_size(0, 128);
 		m_prepare_order_key.set_arg(0, order_key);
 		m_prepare_order_key.set_arg(1, size);
 		m_prepare_order_key.invoke();
@@ -42,8 +44,7 @@ public class Operations extends AbstractUtil {
 
 	public void doubleToInt32(Buffer double_buffer, Buffer attribute_map, Buffer int32_buffer, int rows,
 			int num_attributes) {
-		int global_size = (((rows * num_attributes) >> 7) << 7) + 128;
-		m_double2uint_kernel.set_global_size(0, global_size);
+		m_double2uint_kernel.set_global_size(0, ((rows * num_attributes)/128+1)* 128);
 		m_double2uint_kernel.set_local_size(0, 128);
 		m_double2uint_kernel.set_arg(0, double_buffer);
 		m_double2uint_kernel.set_arg(1, attribute_map);
@@ -57,7 +58,8 @@ public class Operations extends AbstractUtil {
 
 	public void normalize(Buffer input, Buffer output, Buffer min_values, Buffer max_values, Buffer attribute_map,
 			int num_attributes, int num_instances) {
-		m_normalize_kernel.set_global_size(0, ((num_instances >> 7) << 7) + 128);
+		int size = num_instances;
+		m_normalize_kernel.set_global_size(0, 128*(size/128+1));
 		m_normalize_kernel.set_local_size(0, 128);
 		m_normalize_kernel.set_arg(0, input);
 		m_normalize_kernel.set_arg(1, output);
@@ -67,6 +69,22 @@ public class Operations extends AbstractUtil {
 		m_normalize_kernel.set_arg(5, num_attributes);
 		m_normalize_kernel.set_arg(6, num_instances);
 		m_normalize_kernel.invoke();
+
+	}
+  
+  public void normalizeFloat(Buffer input, Buffer output, Buffer min_values, Buffer max_values, Buffer attribute_map,
+			int num_attributes, int num_instances) {
+	  int size = num_instances;
+		m_normalize_kernel_float.set_global_size(0, 128*(size/128+1));
+		m_normalize_kernel_float.set_local_size(0, 128);
+		m_normalize_kernel_float.set_arg(0, input);
+		m_normalize_kernel_float.set_arg(1, output);
+		m_normalize_kernel_float.set_arg(2, min_values);
+		m_normalize_kernel_float.set_arg(3, max_values);
+		m_normalize_kernel_float.set_arg(4, attribute_map);
+		m_normalize_kernel_float.set_arg(5, num_attributes);
+		m_normalize_kernel_float.set_arg(6, num_instances);
+		m_normalize_kernel_float.invoke();
 
 	}
 
@@ -79,8 +97,8 @@ public class Operations extends AbstractUtil {
 	public void shiftByRandomVector(Buffer data_point_buffer, Buffer random_shift, int num_attributes, int num_rows) {
 		m_random_shift_kernel.set_global_size(0, num_attributes);
 		m_random_shift_kernel.set_local_size(0, 1);
-
-		m_random_shift_kernel.set_global_size(1, ((num_rows >> 7) << 7) + 128);
+		int size = num_rows;
+		m_random_shift_kernel.set_global_size(1, 128*(size/128+1));
 		m_random_shift_kernel.set_local_size(1, 128);
 		m_random_shift_kernel.set_arg(0, data_point_buffer);
 		m_random_shift_kernel.set_arg(1, random_shift);

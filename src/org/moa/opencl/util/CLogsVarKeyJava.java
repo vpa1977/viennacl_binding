@@ -38,8 +38,8 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 		String keyType = "uint";
 		String valueType = "uint";
 		int reduceWorkGroupSize = 128;
-		 int scanWorkGroupSize = 64;
-		 int scatterWorkGroupSize = 64;
+		 int scanWorkGroupSize = 256;//64;
+		 int scatterWorkGroupSize = 256; //64
 		 int warpSizeSchedule = 64;
 		 int warpSizeMem  = 1;
 		 int scatterWorkScale = 3;

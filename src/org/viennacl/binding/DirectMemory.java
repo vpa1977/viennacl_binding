@@ -129,6 +129,13 @@ public class DirectMemory {
 		long write_to =   writeIndex * LONG_SIZE;
 		m_direct_memory.copyMemory(data, read_from, null, m_buffer+write_to, data.length*m_direct_memory.ARRAY_LONG_INDEX_SCALE );		
 	}
+	public static void writeArray(long m_buffer, int writeIndex, float[] data) {
+		if (m_buffer == 0)
+			throw new RuntimeException("Attempt to access null pointer");
+		long read_from = m_direct_memory.ARRAY_FLOAT_BASE_OFFSET;
+		long write_to =   writeIndex * FLOAT_SIZE;
+		m_direct_memory.copyMemory(data, read_from, null, m_buffer+write_to, data.length*m_direct_memory.ARRAY_FLOAT_INDEX_SCALE );		
+	}
 
 
 	/** 

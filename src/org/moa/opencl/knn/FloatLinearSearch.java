@@ -1,12 +1,13 @@
 package org.moa.opencl.knn;
 
 import org.moa.gpu.DenseInstanceBuffer;
-
-
+import org.moa.gpu.DenseInstanceBuffer.Kind;
 import org.moa.gpu.SlidingWindow;
+import org.moa.opencl.util.CLogsVarKeyJava;
 import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.DoubleMergeSort;
 import org.moa.opencl.util.MinMax;
+import org.moa.opencl.util.Operations;
 import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
@@ -14,6 +15,7 @@ import org.viennacl.binding.DirectMemory;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.tasks.TaskMonitor;
+import org.moa.opencl.util.FloatMergeSort;
 import weka.core.Instance;
 import weka.core.Instances;
 
@@ -38,7 +40,9 @@ public class FloatLinearSearch extends Search{
 	private Buffer m_result_buffer;
 	private Buffer m_attribute_types;
 	private Distance m_distance;
-	private DoubleMergeSort m_sort;
+	private CLogsVarKeyJava m_sort;
+  private FloatMergeSort m_merge_sort;
+	private Operations m_ops;
 	private Buffer m_result_index_buffer;
 
 	public FloatLinearSearch()
@@ -53,18 +57,18 @@ public class FloatLinearSearch extends Search{
 		m_distance = new Distance(ctx);
 		m_min_max = new MinMax(ctx);
 		
-		m_min_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_max_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_test_instance =  new DenseInstanceBuffer(ctx, 1, m_dataset.numAttributes());
-		m_min_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_max_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
+		m_min_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_max_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_test_instance =  new DenseInstanceBuffer(Kind.FLOAT_BUFFER, ctx, 1, m_dataset.numAttributes());
+		m_min_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_max_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
 		
 		m_attribute_types = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.INT_SIZE);
 		m_attribute_types.mapBuffer(Buffer.WRITE);
 		m_attribute_types.writeArray(0, attributeTypes(dataset));
 		m_attribute_types.commitBuffer();
-		
-		
+		m_sort = new CLogsVarKeyJava(m_context, true, "unsigned int", "unsigned int");
+		m_ops = new Operations(m_context);
 		
 	}
 	
@@ -90,32 +94,49 @@ public class FloatLinearSearch extends Search{
 		
 		if (m_result_buffer == null)
 		{
-			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
+			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.FLOAT_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
-			m_sort = new DoubleMergeSort(m_context, data.rows());
+			m_merge_sort = new FloatMergeSort(m_context, data.rows());
+					
 		}
 
 		if (m_dirty)
 		{
-			m_min_max.fullMinMaxDouble(m_dataset, data, m_min_values, m_max_values);
+			m_min_max.fullMinMaxFloat(m_dataset, data, m_min_values, m_max_values);
 			m_dirty = false;
 		}
 		m_min_values.copyTo(m_min_values_with_test_instance);
 		m_max_values.copyTo(m_max_values_with_test_instance);
 		m_test_instance.begin(Buffer.WRITE);
 		m_test_instance.set(instance, 0);
-		m_test_instance.commit();
-		m_min_max.updateMinMaxDouble(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
 		
-		m_distance.squareDistance(m_dataset, 
+		//Instance verify = m_test_instance.read(0, m_dataset);
+		m_test_instance.commit();
+		m_min_max.updateMinMaxFloat(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
+		
+	//	float[] check = new float[(int)(m_min_values_with_test_instance.byteSize()/DirectMemory.FLOAT_SIZE)];
+	//	m_min_values_with_test_instance.mapBuffer(Buffer.READ);
+	//	m_min_values_with_test_instance.readArray(0,  check);
+	//	m_min_values_with_test_instance.commitBuffer();
+		
+	//	m_max_values_with_test_instance.mapBuffer(Buffer.READ);
+	//	m_max_values_with_test_instance.readArray(0,  check);
+	//	m_max_values_with_test_instance.commitBuffer();
+		
+		m_distance.squareDistanceFloat(m_dataset, 
 				m_test_instance, 
 				data, 
 				m_min_values, 
 				m_max_values, 
 				m_attribute_types, 
 				m_result_buffer);
-		
-		m_sort.sort(m_result_buffer, m_result_index_buffer);
+    if (m_context.memoryType() == Context.HSA_MEMORY)
+      m_merge_sort.sort(m_result_buffer, m_result_index_buffer);
+    else
+    {
+      m_ops.prepareOrderKey(m_result_index_buffer, data.rows());
+      m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer, data.rows());
+    }
 		int[] candidates = new int[K];
 		m_result_index_buffer.mapBuffer(Buffer.READ, 0, K * DirectMemory.INT_SIZE);
 		m_result_index_buffer.readArray(0, candidates);

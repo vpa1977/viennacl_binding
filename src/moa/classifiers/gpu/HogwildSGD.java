@@ -8,12 +8,14 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import org.moa.gpu.SlidingWindow;
 import org.moa.gpu.SparseSlidingWindow;
+import org.moa.gpu.UnitOfWork;
 import org.moa.opencl.knn.DeviceZOrderSearch;
 import org.moa.opencl.knn.DoubleLinearSearch;
 import org.moa.opencl.knn.Search;
 import org.moa.opencl.knn.SimpleZOrderSearch;
 import org.moa.opencl.sgd.Gradient;
 import org.moa.opencl.sgd.HingeGradient;
+import org.moa.opencl.sgd.HogwildScheme;
 import org.moa.opencl.sgd.SimpleUpdater;
 import org.moa.opencl.sgd.Updater;
 import org.viennacl.binding.Buffer;
@@ -40,13 +42,16 @@ import weka.core.Instances;
  */
 public class HogwildSGD extends AbstractClassifier  {
 
+    
+    static
+    {
+    	System.loadLibrary("viennacl-java-binding");
+    }
+    
 	
-	private int m_batch_size;
-    private boolean m_native_init = false;
-    private transient SparseSlidingWindow m_sliding_window;
     private ZeroR m_default_classifier = new ZeroR();
     private transient Context m_context;
-    
+    private transient HogwildScheme m_hogwild_scheme;
     
     public HogwildSGD()
     {
@@ -63,29 +68,26 @@ public class HogwildSGD extends AbstractClassifier  {
             new String[]{"Hinge function"
             }, 0);
     
-	public IntOption minbatchSizeOption = new IntOption( "minibatchSize", 's', "Minibatch size", 128, 1, Integer.MAX_VALUE);
+	public IntOption parallelBatchesOption = new IntOption( "parallelBatches", 'p', "Number of parallel batches", 16, 1, Integer.MAX_VALUE);
+	public IntOption minbatchSizeOption = new IntOption( "minibatchSize", 's', "Minibatch size", 16, 1, Integer.MAX_VALUE);
     public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'b', "Number of minibatches in Sliding Window Size", 10, 2, Integer.MAX_VALUE);
-	private Updater m_updater;
-	private HingeGradient m_loss_function;
-
-
-	private class UpdateProcess 
-	{
-		private Gradient m_gradient;
-		private Updater m_updater;
-	}
+	public MultiChoiceOption contextUsedOption = new MultiChoiceOption("contextUsed", 'c', "Context Type",
+			new String[] { "CPU", "OPENCL", "HSA" }, new String[] { "CPU single thread",
+					"OpenCL offload. Use OPENCL_DEVICE Env. variable to select device", "HSA Offload" },
+			0);
 	
-	/* updaters */
-	private ArrayBlockingQueue<UpdateProcess> m_update_workers = new ArrayBlockingQueue<UpdateProcess>(10);
-	/** executor for training */
-	private ForkJoinPool m_executor = new ForkJoinPool();
-    
 
     @Override
 	public void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository) {
 		// TODO Auto-generated method stub
 		super.prepareForUseImpl(monitor, repository);
-		m_context = GlobalContext.context();
+		if (contextUsedOption.getChosenIndex() == 0)
+			m_context = new Context(Context.Memory.MAIN_MEMORY, null);
+		else if (contextUsedOption.getChosenIndex() == 1)
+			m_context = new Context(Context.Memory.OPENCL_MEMORY, null);
+		else if (contextUsedOption.getChosenIndex() == 2)
+			m_context = new Context(Context.Memory.HSA_MEMORY, null);
+		m_hogwild_scheme = null;
 	}
 
 	@Override
@@ -99,37 +101,24 @@ public class HogwildSGD extends AbstractClassifier  {
         if (inst == null) {
             return null;
         }
-		try {
-			return m_default_classifier.distributionForInstance(inst);
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
+		return 	m_hogwild_scheme.getVotesForInstance(inst);
     }
 
 
 	@Override
     public void resetLearningImpl() {
-		m_sliding_window = null;
-        shutdown();
+		
     }
+	
+	private UnitOfWork m_work;
     
     @Override
     public void trainOnInstanceImpl(Instance inst) {
-    	if (m_sliding_window == null)
+    	if (m_hogwild_scheme == null)
     	{
-    		if (updaterOption.getChosenIndex() == 0)
-    			m_updater = new SimpleUpdater(m_context, inst.dataset().numAttributes());
-    		
-    		m_sliding_window = new SparseSlidingWindow(m_context, inst.dataset(), 
-    				slidingWindowSizeOption.getValue(), 
-    				minbatchSizeOption.getValue());
-    		if (lossOption.getChosenIndex() == 0)
-    			m_loss_function = new HingeGradient(m_context,inst.dataset().numAttributes() , minbatchSizeOption.getValue());
-    		
-    		
-    		
+    		m_hogwild_scheme = new HogwildScheme(m_context, inst.dataset(), this.parallelBatchesOption.getValue(),
+    				this.minbatchSizeOption.getValue());
+    		m_hogwild_scheme.populate(true);
     		try {
     			//testSupport.buildClassifier(inst.dataset());
 				m_default_classifier.buildClassifier(inst.dataset());
@@ -138,14 +127,22 @@ public class HogwildSGD extends AbstractClassifier  {
 				e.printStackTrace();
 			}
     	}
-    	
-        
+    	if (m_work == null)
+    	{
+    		m_work = m_hogwild_scheme.take();
+    	}
+    	if (!m_work.append(inst))
+    	{
+    		m_work.commit();
+    		m_hogwild_scheme.put(m_work);
+    		m_work = m_hogwild_scheme.take();
+    		m_work.append(inst);
+    	}
     }
 
     @Override
     protected Measurement[] getModelMeasurementsImpl() {
-        // TODO Auto-generated method stub
-        return null;
+    	return null;
     }
 
     @Override
@@ -153,13 +150,6 @@ public class HogwildSGD extends AbstractClassifier  {
         out.append("Hogwild! based SGD implementation");
     }
     
-    private void shutdown()
-    {
-        if (m_native_init)
-        {
-            m_sliding_window.dispose();
-            m_native_init = false;
-        }
-    }
+  
     
 }

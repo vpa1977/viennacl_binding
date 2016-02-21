@@ -63,6 +63,14 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_native_1copy__Lorg_vienn
 
 /*
  * Class:     org_viennacl_binding_Buffer
+ * Method:    native_copy_to
+ * Signature: (Lorg/viennacl/binding/Buffer;J)V
+ */
+JNIEXPORT void JNICALL Java_org_viennacl_binding_Buffer_native_1copy_1to
+  (JNIEnv *, jobject, jobject, jlong);
+
+/*
+ * Class:     org_viennacl_binding_Buffer
  * Method:    native_copy
  * Signature: (Lorg/viennacl/binding/Buffer;JJ)V
  */

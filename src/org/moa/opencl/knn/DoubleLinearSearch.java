@@ -40,7 +40,7 @@ public class DoubleLinearSearch extends Search{
 	private Buffer m_result_buffer;
 	private Buffer m_attribute_types;
 	private Distance m_distance;
-	//private DoubleMergeSort m_sort;
+	private DoubleMergeSort m_sort_merge;
 	private CLogsVarKeyJava m_sort;
   private Operations m_ops;
 	private Buffer m_result_index_buffer;
@@ -99,7 +99,7 @@ public class DoubleLinearSearch extends Search{
 		//	m_sort = new DoubleMergeSort(m_context, data.rows());
 			m_sort = new CLogsVarKeyJava(m_context, true, "unsigned long", "unsigned int");
 			m_ops = new Operations(m_context);
-		
+      m_sort_merge = new DoubleMergeSort(m_context, data.rows());
 		}
 
 		if (m_dirty)
@@ -134,8 +134,15 @@ public class DoubleLinearSearch extends Search{
 	    System.out.println();
 */
 		int size = (int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE);
-		m_ops.prepareOrderKey(m_result_index_buffer, size);
-		m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer,size);
+    if (m_context.memoryType() == Context.HSA_MEMORY)
+    {
+      m_sort_merge.sort(m_result_buffer, m_result_index_buffer); // random access is better 
+    }
+    else
+    {
+      m_ops.prepareOrderKey(m_result_index_buffer, size);
+      m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer,size);
+    }
 		int[] candidates = new int[K];
 		m_result_index_buffer.mapBuffer(Buffer.READ, 0, (K) * DirectMemory.INT_SIZE);
 		m_result_index_buffer.readArray(0, candidates);

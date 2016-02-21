@@ -39,7 +39,7 @@ public class ZOrderTransform {
 		m_morton_code = new MortonCode(ctx, dimensions);
 		m_sort = new CLogsVarKeyJava(ctx, false);
 		m_rows = rows;
-		m_normalized_data = new Buffer(ctx, rows*dimensions*DirectMemory.DOUBLE_SIZE);
+		m_normalized_data = new Buffer(ctx, rows*dimensions*DirectMemory.FLOAT_SIZE);
 		m_data_point_buffer = new Buffer(ctx, rows * dimensions * DirectMemory.INT_SIZE);
 		m_morton_code_buffer = new Buffer(ctx, rows * dimensions * DirectMemory.INT_SIZE);
 		m_sorted_code_order = new Buffer(ctx, rows*DirectMemory.INT_SIZE);
@@ -125,7 +125,7 @@ public class ZOrderTransform {
 		sequence.indices().mapBuffer(Buffer.READ, min*DirectMemory.INT_SIZE, (max - min)*DirectMemory.INT_SIZE);
 		sequence.indices().readArray(0, candidates);
 		sequence.indices().commitBuffer();
-        return candidates;
+    return candidates;
 	}
 	
 	
@@ -136,7 +136,7 @@ public class ZOrderTransform {
 			boolean normalize
 			)
 	{
-		m_operations.doubleToInt32(m_normalized_data, attribute_map, m_data_point_buffer, m_rows, num_attributes);
+		m_normalized_data.copyTo(m_data_point_buffer);
 		m_operations.shiftByRandomVector(m_data_point_buffer, random_shift,num_attributes , m_rows);
 		m_morton_code.computeMortonCode(m_morton_code_buffer, m_data_point_buffer, m_rows);
 		m_operations.prepareOrderKey(m_sorted_code_order, m_rows);
@@ -194,7 +194,7 @@ public class ZOrderTransform {
 
 		if (normalize)
 		{
-			m_operations.normalize(instances.attributes(), m_normalized_data, 
+			m_operations.normalizeFloat(instances.attributes(), m_normalized_data, 
 					min_values, max_values, attribute_map, 
 					num_attributes, instances.rows());
 		}

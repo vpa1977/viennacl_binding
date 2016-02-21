@@ -7,6 +7,7 @@ import java.util.Random;
 
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.SlidingWindow;
+import org.moa.opencl.util.CLogsVarKeyJava;
 import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.DoubleMergeSort;
 import org.moa.opencl.util.MinMax;
@@ -22,6 +23,7 @@ import moa.classifiers.lazy.neighboursearch.EuclideanDistance;
 import moa.core.ObjectRepository;
 import moa.options.AbstractOptionHandler;
 import moa.tasks.TaskMonitor;
+import org.moa.opencl.util.FloatMergeSort;
 import org.moa.opencl.util.Operations;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -55,7 +57,7 @@ public class DeviceZOrderSearch extends Search{
 	private Buffer m_result_index_buffer;
 	private Buffer m_candidates_buffer;
 	private ArrayList<ZOrderSequence> m_z_orders;
-	private DoubleMergeSort m_sort;
+	private CLogsVarKeyJava m_sort;
 	private Operations m_ops;
 	private int m_number_of_curves;
 	private ArrayList<Buffer> m_random_shift_vectors;
@@ -66,7 +68,7 @@ public class DeviceZOrderSearch extends Search{
 	public DeviceZOrderSearch()
 	{
 		m_dirty = true;
-		m_number_of_curves = 4;
+		m_number_of_curves = 2;
 	}
 	
 	public void init(Context ctx, Instances dataset)
@@ -77,12 +79,12 @@ public class DeviceZOrderSearch extends Search{
 		m_distance = new Distance(ctx);
 		m_min_max = new MinMax(ctx);
 		m_search = new NarySearch(ctx,false);
-		
-		m_min_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_max_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_test_instance =  new DenseInstanceBuffer(ctx, 1, m_dataset.numAttributes());
-		m_min_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_max_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
+		m_sort = new CLogsVarKeyJava(m_context, true, "unsigned int", "unsigned int");
+		m_min_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_max_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_test_instance =  new DenseInstanceBuffer(DenseInstanceBuffer.Kind.FLOAT_BUFFER, ctx, 1, m_dataset.numAttributes());
+		m_min_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_max_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
 		
 		m_attribute_types = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.INT_SIZE);
 		m_attribute_types.mapBuffer(Buffer.WRITE);
@@ -130,17 +132,17 @@ public class DeviceZOrderSearch extends Search{
 		if (m_result_buffer == null)
 		{
       //System.out.println("reinit variables");
-			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
+			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.FLOAT_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
 			m_transform = new ZOrderTransform(m_context, instance.dataset().numAttributes(), data.rows());
-			m_sort = new DoubleMergeSort(m_context, data.rows());
+			
 			m_ops = new Operations(m_context);
 		}
 
 		if (m_z_orders == null)
 		{
 			System.out.println("Building new z-order");
-			m_min_max.fullMinMaxDouble(m_dataset, data, m_min_values, m_max_values);
+			m_min_max.fullMinMaxFloat(m_dataset, data, m_min_values, m_max_values);
 			m_z_orders = new ArrayList<ZOrderSequence>();
 			m_transform.fillNormalizedData(instance.numAttributes(), data, m_min_values, m_max_values, m_attribute_types, true);
      
@@ -158,7 +160,7 @@ public class DeviceZOrderSearch extends Search{
 		m_test_instance.begin(Buffer.WRITE);
 		m_test_instance.set(instance, 0);
 		m_test_instance.commit();
-		m_min_max.updateMinMaxDouble(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
+		m_min_max.updateMinMaxFloat(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
 		HashSet<Integer> possible_candidates = new HashSet<Integer>();
 		int index = 0;
 		int strange = 0;
@@ -238,7 +240,7 @@ public class DeviceZOrderSearch extends Search{
     
     
 		int sort_size = cnd_items.length;
-		m_distance.squareDistance(
+		m_distance.squareDistanceFloat(
 				m_dataset, 
 				m_test_instance, 
 				data, 
@@ -250,7 +252,7 @@ public class DeviceZOrderSearch extends Search{
 				m_candidates_buffer);
 		
 		m_ops.prepareOrderKey(m_result_index_buffer, sort_size);
-		m_sort.sort(m_result_buffer, m_result_index_buffer, sort_size);
+		m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer, sort_size);
 		int[] nearest_k = new int[K];
 		m_result_index_buffer.mapBuffer(Buffer.READ, 0, K * DirectMemory.INT_SIZE);
 		m_result_index_buffer.readArray(0, nearest_k);
@@ -270,7 +272,7 @@ public class DeviceZOrderSearch extends Search{
 		{
       //System.out.println("Compute error");
 			m_result_buffer.mapBuffer(Buffer.READ);
-			double kth_approx = m_result_buffer.read(K * DirectMemory.DOUBLE_SIZE);
+			double kth_approx = m_result_buffer.read(K * DirectMemory.FLOAT_SIZE);
 			m_result_buffer.commitBuffer();
 			
 			m_distance.squareDistance(m_dataset, 
@@ -281,10 +283,10 @@ public class DeviceZOrderSearch extends Search{
 					m_attribute_types, 
 					m_result_buffer);
 			m_ops.prepareOrderKey(m_result_index_buffer, data.rows());
-			m_sort.sort(m_result_buffer, m_result_index_buffer, data.rows());
+			m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer, data.rows());
 			double kth_true;
 			m_result_buffer.mapBuffer(Buffer.READ);
-			kth_true = m_result_buffer.read(K * DirectMemory.DOUBLE_SIZE);
+			kth_true = m_result_buffer.read(K * DirectMemory.FLOAT_SIZE);
 			
 			m_result_buffer.commitBuffer();
 			double eps = kth_approx/kth_true;

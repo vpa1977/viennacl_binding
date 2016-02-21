@@ -44,13 +44,13 @@ public class SlidingWindow {
     
     private Instance[] m_input_data;
     
-    public SlidingWindow(Context ctx, Instances dataset,  int size) {
+    public SlidingWindow(DenseInstanceBuffer.Kind kind, Context ctx, Instances dataset,  int size) {
     	m_is_writing = false;
         m_size = size;
         m_dataset = dataset;
         m_ready = false;
         m_row = 0;
-        m_model = new DenseInstanceBuffer(ctx, m_size, m_dataset.numAttributes());
+        m_model = new DenseInstanceBuffer(kind,ctx, m_size, m_dataset.numAttributes());
         m_input_data = new Instance[size];
     }
 

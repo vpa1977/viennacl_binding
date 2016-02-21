@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.opencl.util.CLogsSort;
 import org.moa.opencl.util.CLogsVarKeyJava;
+import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.DoubleMergeSort;
 import org.moa.opencl.util.Operations;
 import org.viennacl.binding.Buffer;
@@ -42,13 +43,13 @@ public class KdTreeParallelDistance extends KDTree {
 	private Target m_target;
 	private Buffer m_min_range;
 	private Buffer m_width;
-	private Kernel m_distance_kernel;
 	private Buffer m_instance_types;
 	private Buffer m_distance_results;
 	private Operations m_operations;
 	//private DoubleMergeSort m_merge_sorter;
 	private CLogsVarKeyJava m_merge_sorter;
 	private Buffer m_sort_indices;
+	private Distance m_distance;
 
 	private class Target {
 		Instance m_target;
@@ -61,14 +62,15 @@ public class KdTreeParallelDistance extends KDTree {
 		m_buffer = buffer;
 		m_indices = indices;
 		//m_merge_sorter = new DoubleMergeSort(m_context, m_buffer.rows());
-		m_merge_sorter = new CLogsVarKeyJava(ctx, true, "unsigned long", "unsigned int");
+		m_merge_sorter = new CLogsVarKeyJava(ctx, true, "unsigned int", "unsigned int");
 		m_sort_indices = new Buffer(m_context, m_buffer.rows() * DirectMemory.INT_SIZE);
-		m_distance_results = new Buffer(m_context, m_buffer.rows() * DirectMemory.DOUBLE_SIZE);
+		m_distance_results = new Buffer(m_context, m_buffer.rows() * DirectMemory.FLOAT_SIZE);
 
 		m_target = new Target();
 		m_MaxInstInLeaf = 4 * OFFLOAD_THRESHOLD;
 		m_operations = new Operations(m_context);
 		m_MeasurePerformance  = true;
+		m_distance = new Distance(m_context);
 	}
 
 	@Override
@@ -81,8 +83,8 @@ public class KdTreeParallelDistance extends KDTree {
 	private void refreshGPUCache() throws Exception {
 
 		if (m_min_range == null) {
-			m_min_range = new Buffer(m_context, DirectMemory.DOUBLE_SIZE * m_EuclideanDistance.getRanges().length);
-			m_width = new Buffer(m_context, DirectMemory.DOUBLE_SIZE * m_EuclideanDistance.getRanges().length);
+			m_min_range = new Buffer(m_context, DirectMemory.FLOAT_SIZE * m_EuclideanDistance.getRanges().length);
+			m_width = new Buffer(m_context, DirectMemory.FLOAT_SIZE * m_EuclideanDistance.getRanges().length);
 
 			m_instance_types = new Buffer(m_context, DirectMemory.INT_SIZE * m_Instances.numAttributes());
 			m_instance_types.mapBuffer(Buffer.WRITE);
@@ -189,13 +191,13 @@ public class KdTreeParallelDistance extends KDTree {
 	}
 
 	private void readDistances(double[] dist) {
-		m_distance_results.mapBuffer(Buffer.READ_WRITE, 0, dist.length * DirectMemory.DOUBLE_SIZE);
+		m_distance_results.mapBuffer(Buffer.READ, 0, dist.length * DirectMemory.DOUBLE_SIZE);
 		m_distance_results.readArray(0, dist);
 		m_distance_results.commitBuffer();
 	}
 
 	private void readSortIndices(int[] ind) {
-		m_sort_indices.mapBuffer(Buffer.READ_WRITE, 0, ind.length * DirectMemory.INT_SIZE);
+		m_sort_indices.mapBuffer(Buffer.READ, 0, ind.length * DirectMemory.INT_SIZE);
 		m_sort_indices.readArray(0, ind);
 		m_sort_indices.commitBuffer();
 	}
@@ -204,19 +206,12 @@ public class KdTreeParallelDistance extends KDTree {
 
 		if (m_target.m_target != target) {
 			m_target.m_target = target;
-			m_target.attributes = new DenseInstanceBuffer(m_context, 1, target.numAttributes());
+			m_target.attributes = new DenseInstanceBuffer(DenseInstanceBuffer.Kind.FLOAT_BUFFER, m_context, 1, target.numAttributes());
 			m_target.attributes.begin(Buffer.WRITE);
 			m_target.attributes.set(target, 0);
 			m_target.attributes.commit();
 		}
-		if (!m_context.hasProgram("kd_tree_distance_helper")) {
-			createProgram(m_context, target.numAttributes());
-		}
-		if (m_distance_kernel == null) {
-			m_distance_kernel = m_context.getKernel("kd_tree_distance_helper", "square_distance_index");
-			// m_distance_kernel.set_local_size(0, (int)Math.min(256,
-			// nextPow2(target.numAttributes())));
-		}
+		/*
 		m_distance_kernel.set_global_size(0, (int) (end - start + 1));
 		m_distance_kernel.set_arg(0, m_indices);
 		m_distance_kernel.set_arg(1, m_target.attributes.attributes());
@@ -229,6 +224,7 @@ public class KdTreeParallelDistance extends KDTree {
 		m_distance_kernel.set_arg(7, target.numAttributes());
 		m_distance_kernel.set_arg(8, start);
 		m_distance_kernel.invoke();
+		*/
 	}
 
 	private long nextPow2(long v) {
@@ -241,8 +237,8 @@ public class KdTreeParallelDistance extends KDTree {
 		return v;
 	}
 
-	private void createProgram(Context ctx, int local_size) {
-		StringBuffer src = loadKernel("distance_wg_kd.cl");
+	private void createProgram(Context ctx) {
+		StringBuffer src = loadKernel("distance.cl");
 		m_context.add("kd_tree_distance_helper", src.toString());
 	}
 

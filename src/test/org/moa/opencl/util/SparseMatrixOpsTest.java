@@ -38,9 +38,7 @@ public class SparseMatrixOpsTest {
 	
 	public static void main(String[] args)
 	{
-		
-		new SparseMatrixOpsTest().testColumnSum();
-		;
+		System.out.println(new SparseMatrixOps(new SparseMatrixOpsTest().context).generate("double"));
 	}
 
 	

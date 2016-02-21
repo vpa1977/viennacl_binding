@@ -9,7 +9,7 @@ import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.SparseInstance;
 
-public class SparseInstanceBuffer extends SparseMatrix {
+public class SparseInstanceBuffer extends SparseMatrix implements UnitOfWork {
 	
 	public enum Kind
 	{
@@ -37,20 +37,32 @@ public class SparseInstanceBuffer extends SparseMatrix {
     private Buffer m_class_buffer;
     private long m_number_of_attributes;
     private Buffer m_weights;
-
-    public SparseInstanceBuffer(Context context, int rows, int numAttributes, double fill_ratio) {
-    	super(Kind.DOUBLE_BUFFER, context, rows,numAttributes ,  (int)(rows * numAttributes  * fill_ratio));
+    
+    public void reset()
+    {
+    	m_row_position = 0;
+    	super.reset();
+    }
+    
+    public SparseInstanceBuffer(SparseInstanceBuffer.Kind kind, Context context, int rows, int numAttributes, double fill_ratio) 
+    {
+    	super(kind, context, rows,numAttributes ,  (int)(rows * numAttributes  * fill_ratio));
         m_number_of_attributes = numAttributes;
         m_class_buffer =  new Buffer(context, m_total_rows * m_value_size, Buffer.READ_WRITE);
         m_weights = new Buffer(context, m_total_rows * m_value_size, Buffer.READ_WRITE);
         m_row_position = 0;
     }
+
+    public SparseInstanceBuffer(Context context, int rows, int numAttributes, double fill_ratio) {
+    	this(Kind.DOUBLE_BUFFER, context, rows, numAttributes, fill_ratio);
+    }
     
-    public void append(Instance iis) {
+    public boolean append(Instance iis) {
 		if (m_row == m_total_rows) 
-			throw new RuntimeException("Buffer full");
+			return false;
 		SparseInstanceAccess access = new SparseInstanceAccess(iis);
 		double[] values = access.values();
+		
 		int[] indices = access.indices();
 		// attempt to compact - align data to the start of the buffer
 		// resize
@@ -61,7 +73,17 @@ public class SparseInstanceBuffer extends SparseMatrix {
 		// write last row position to row jumper
 		m_row_jumper.writeInt(m_row*DirectMemory.INT_SIZE, column_position); // mark start of row
 		m_column_data.writeArray(m_row_position, indices);
-		m_elements.writeArray(m_row_position, values);
+		if (m_kind == Kind.FLOAT_BUFFER)
+		{
+			float[] dup = new float[values.length];
+			for (int i = 0; i < values.length; ++i)
+				dup[i] = (float)values[i];
+			m_elements.writeArray(m_row_position, dup);
+		}
+		else
+		{
+			m_elements.writeArray(m_row_position, values);
+		}
 		
 		
 		m_class_buffer.write(m_row * m_value_size, iis.classValue()); 
@@ -69,6 +91,7 @@ public class SparseInstanceBuffer extends SparseMatrix {
 
 	    m_row ++;
 	    m_row_position += values.length;
+	    return true;
 	}
 
    

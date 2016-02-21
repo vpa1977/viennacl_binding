@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.util.ArrayList;
 
 import org.junit.Test;
+import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.SlidingWindow;
 
 import org.moa.opencl.knn.tree.KDTreeBufferCPU;
@@ -33,7 +34,7 @@ public class KDTreeBufferTest {
 		for (int i = 0;i < window_size; ++i)
 			pregen.add( gen.nextInstance() );
 		
-		SlidingWindow window = new SlidingWindow(ctx,gen.getHeader(), window_size);
+		SlidingWindow window = new SlidingWindow(DenseInstanceBuffer.Kind.DOUBLE_BUFFER,ctx,gen.getHeader(), window_size);
 		window.begin();
 		for (int i = 0 ; i < window_size; ++i)
 			window.update(pregen.get(i));

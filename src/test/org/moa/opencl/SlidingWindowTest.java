@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.util.ArrayList;
 
 import org.junit.Test;
+import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.SlidingWindow;
 import org.viennacl.binding.Context;
 
@@ -34,7 +35,7 @@ public class SlidingWindowTest {
 		
 		
 		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
-		SlidingWindow window = new SlidingWindow(ctx,gen.getHeader(), window_size);
+		SlidingWindow window = new SlidingWindow(DenseInstanceBuffer.Kind.DOUBLE_BUFFER,ctx,gen.getHeader(), window_size);
 		
 		window.begin();
 		for (int i = 0 ; i < window_size; ++i)

@@ -23,8 +23,10 @@ __kernel void double2uint(__global double* in, __global uint* attribute_map, __g
 
 __kernel void prepare_order_key(__global uint* buffer, int max)
 {
+
   int id = get_global_id(0);
-  if (id < max) buffer[id] = id;
+  for (; id < max; id += get_global_size(0))
+	  buffer[id] = id;
 }
 
 
@@ -54,6 +56,34 @@ __kernel void normalize_attributes(
 		}
 	}
 }
+
+__kernel void normalize_attributes_float(
+		__global float* in,
+		__global float* out,
+		__global  float* range_min,
+		__global  float* range_max,
+		__global const int* attribute_type,
+		const int attribute_size,
+    const int num_instances)
+{
+  if (get_global_id(0) >= num_instances) 
+    return;
+	int vector_offset = attribute_size * get_global_id(0);
+	int i;
+	for (i = 0; i < attribute_size ; i ++ )
+	{
+		if (attribute_type[i] == atNUMERIC)
+		{
+			double width = ( range_max[i] - range_min[i]);
+			out[vector_offset+i] = width > 0 ? (in[vector_offset+i] - range_min[i]) / width : 0;
+		}
+		else
+		{
+			out[vector_offset+i] = in[vector_offset + i];
+		}
+	}
+}
+
 
 __kernel void random_shift(__global uint* data, __global uint* shift, const int max)
 {

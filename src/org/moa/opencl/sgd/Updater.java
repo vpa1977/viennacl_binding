@@ -5,6 +5,6 @@ import org.viennacl.binding.Buffer;
 
 public interface Updater {
 
-	void simpleUpdate(int rows, Buffer weights, SparseMatrix gradients, double learning_rate);
+	public 	void applyUpdate(Buffer gradient_buffer, int batch_number);
 
 }

@@ -14,6 +14,8 @@ public class MortonCode extends AbstractUtil {
 	private int m_dimensions;
 
 	private Kernel m_morton_kernel;
+
+	private Kernel m_morton_kernel_group;
 	
 	public MortonCode(Context context, int dimensions)
 	{
@@ -26,6 +28,7 @@ public class MortonCode extends AbstractUtil {
 		if (!context.hasProgram("morton_code_uint32")) 
 			create_kernel(context);
 		m_morton_kernel = context.getKernel("morton_code_uint32", "morton_code");
+		m_morton_kernel_group = context.getKernel("morton_code_uint32", "morton_code_group");
 	}
 	
 	private void create_kernel(Context context) {
@@ -35,20 +38,46 @@ public class MortonCode extends AbstractUtil {
 	
 	public void computeMortonCode(Buffer output, Buffer source_points, int num_points)
 	{
+		if (m_dimensions > 256)
+		{
+			computeMortonCodeGroup(output, source_points, num_points);
+			return;
+		}
 	//	output.fill((byte)0);
 		output.checkedFill((byte)0, m_dimensions* DirectMemory.INT_SIZE * num_points);
 		
-		m_morton_kernel.set_global_size(0,  ((num_points<<7)>>7) + 128  );
-    m_morton_kernel.set_local_size(0,  128  );
-		m_morton_kernel.set_local_size(1, 1);
-		m_morton_kernel.set_global_size(1, 4);
-
+		m_morton_kernel.set_global_size(0,  256*40  );
+		m_morton_kernel.set_local_size(0,  256  );
+		
+	//	m_morton_kernel.set_local_size(1,  1  );
+	//	m_morton_kernel.set_global_size(1,  4  );
+		
 		m_morton_kernel.set_arg(0,  output);
 		m_morton_kernel.set_arg(1, m_lookup_table);
 		m_morton_kernel.set_arg(2, source_points);
 		m_morton_kernel.set_arg(3, (int)m_dimensions);
 		m_morton_kernel.set_arg(4, (int)num_points);
 		m_morton_kernel.invoke();
+	}
+	
+	public void computeMortonCodeGroup(Buffer output, Buffer source_points, int num_points)
+	{
+	//	output.fill((byte)0);
+		output.checkedFill((byte)0, m_dimensions* DirectMemory.INT_SIZE * num_points);
+		
+		m_morton_kernel_group.set_global_size(0,  256*num_points  );
+		m_morton_kernel_group.set_local_size(0,  256  );
+		
+	//	m_morton_kernel_group.set_local_size(1,  1  );
+	//	m_morton_kernel_group.set_global_size(1,  1  );
+		
+		m_morton_kernel_group.set_arg(0,  output);
+		m_morton_kernel_group.set_arg(1, m_lookup_table);
+		m_morton_kernel_group.set_arg(2, source_points);
+		m_morton_kernel_group.set_arg(3, (int)m_dimensions);
+		m_morton_kernel_group.set_arg(4, (int)num_points);
+		
+		m_morton_kernel_group.invoke();
 	}
 	
 	public void computeMortonCodeCPU(Buffer output, Buffer source_points, int num_points)
@@ -98,3 +127,4 @@ public class MortonCode extends AbstractUtil {
 		return m_lookup_table;
 	}
 }
+

@@ -2,11 +2,13 @@ package moa.classifiers.gpu;
 
 
 
+import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.SlidingWindow;
 import org.moa.opencl.knn.DeviceZOrderSearch;
 import org.moa.opencl.knn.DoubleCosineSearch;
 import org.moa.opencl.knn.DoubleLinearSearch;
 import org.moa.opencl.knn.FJLTZorderSearch;
+import org.moa.opencl.knn.FloatLinearSearch;
 import org.moa.opencl.knn.Search;
 import org.moa.opencl.knn.SimpleZOrderSearch;
 import org.viennacl.binding.Buffer;
@@ -46,18 +48,25 @@ public class KNN extends AbstractClassifier  {
     
     private IBk testSupport = null;
     
+    static
+    {
+    	System.loadLibrary("viennacl-java-binding");
+    }
+    
+    
     public KNN()
     {
     }
     
     public MultiChoiceOption nearestNeighbourSearchOption = new MultiChoiceOption(
             "nearestNeighbourSearch", 'n', "Nearest Neighbour Search to use", new String[]{
-                "DoubleLinearNN", "Z-OrderShift", "Z-OrderShift (device curves)", "Double Cosine Similarity search", "Z-Order + FJLT"},
+                "DoubleLinearNN", "Z-OrderShift", "Z-OrderShift (device curves)", "Double Cosine Similarity search", "Z-Order + FJLT", "FloatLinearNN"},
             new String[]{"Brute force search algorithm for nearest neighbour search. ",
                 "Z-Order shift search algorithm for nearest neighbour search",
                 "Z-Order shift search algorithm for nearest neighbour search (device side)",
                 "Double Cosine Similarity search", 
                 "Z-Order random projection + shift search algorithm for nearest neighbour search (device side)",
+                "LinearFloat",
             }, 0);
     		
 	public IntOption kOption = new IntOption( "k", 'k', "The number of neighbors", 10, 1, Integer.MAX_VALUE);
@@ -77,7 +86,7 @@ public class KNN extends AbstractClassifier  {
 	public void prepareForUseImpl(TaskMonitor monitor, ObjectRepository repository) {
 		// TODO Auto-generated method stub
 		super.prepareForUseImpl(monitor, repository);
-			if (contextUsedOption.getChosenIndex() == 0)
+		if (contextUsedOption.getChosenIndex() == 0)
 			m_context = new Context(Context.Memory.MAIN_MEMORY, null);
 		else if (contextUsedOption.getChosenIndex() == 1)
 			m_context = new Context(Context.Memory.OPENCL_MEMORY, null);
@@ -94,6 +103,8 @@ public class KNN extends AbstractClassifier  {
 			m_search = new DoubleCosineSearch();
 		if (nearestNeighbourSearchOption.getChosenIndex() == 4)
 			m_search = new FJLTZorderSearch();
+		if (nearestNeighbourSearchOption.getChosenIndex() == 5)
+			m_search = new FloatLinearSearch();
 
 		
 	//	testSupport = new IBk(m_k);
@@ -146,6 +157,7 @@ public class KNN extends AbstractClassifier  {
         m_batch_size = slidingWindowSizeOption.getValue();
         m_k = kOption.getValue();
         m_distance_weighting = distanceWeightingOption.getChosenIndex();
+        m_sliding_window = null;
         shutdown();
     }
     
@@ -153,7 +165,10 @@ public class KNN extends AbstractClassifier  {
     public void trainOnInstanceImpl(Instance inst) {
     	if (m_sliding_window == null)
     	{
-    		m_sliding_window = new SlidingWindow(m_context, inst.dataset(),m_batch_size);
+    		DenseInstanceBuffer.Kind kind = DenseInstanceBuffer.Kind.DOUBLE_BUFFER;
+    		if (m_search instanceof FloatLinearSearch || m_search instanceof DeviceZOrderSearch)
+    				kind = DenseInstanceBuffer.Kind.FLOAT_BUFFER;
+    		m_sliding_window = new SlidingWindow(kind,m_context, inst.dataset(),m_batch_size);
     		
     		m_search.init(m_context, inst.dataset());
     		m_search.setSlidingWindow(m_sliding_window);

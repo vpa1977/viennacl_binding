@@ -130,3 +130,67 @@ __kernel void morton_code_group(__global uchar* result,
 		}
 }
 
+// workgroup size 64
+__kernel void morton_code_group2(__global uchar* result,
+													const __global uchar* lookup_table,
+													__global const uint* points,
+													const uint dimensions,
+													const uint N)
+{
+		const uint BYTE_COUNT = 256;
+		const uint rightshift = 32;
+		const int total_len = dimensions * 32 / 8;
+		const int long_steps = total_len / 8;
+		const uint byte_pos = long_steps * 8;
+		__global long* result_as_long = (__global long*)&result[0];
+		__global long* lookup_as_long = (__global long*)&lookup_table[0 ];
+		__local uint point_dim[1024];
+		__local ulong result_buffer[64];
+		if (get_global_id(0) == 0)
+			prefetch(lookup_table, 256 * dimensions * dimensions);
+	    for (uint id = get_group_id(0); id < N ; id+= get_num_groups(0))
+		{
+			uint input_offset =  id * dimensions;
+			uint output_offset = id *total_len;
+
+			for (int j = get_local_id(0); j < dimensions; j+= get_local_size(0))
+				point_dim[j] = points[input_offset + j];
+
+			//int i_depth = get_global_id(1)+1;
+			for (int i_depth = 1; i_depth <= 4; ++i_depth)
+			{
+				int result_offset = output_offset + 3 * dimensions - (i_depth - 1)*dimensions; // each mask has [dimensions] bytes in it
+				int depth = (rightshift - 8 * i_depth);
+				uint lr_offset = result_offset/8;
+				for (int pos =get_local_id(0) ; pos < long_steps; pos += get_local_size(0))
+				{
+					for (unsigned int d = 0; d < dimensions; ++d)
+					{
+						uint point_value = point_dim[d]; //points[input_offset + d]
+						uint byte =  (point_value >> depth) & 0xFF;
+						uint offset = d* dimensions * BYTE_COUNT + byte * dimensions;
+						uint l_offset = offset/8;
+						result_buffer[pos] |= lookup_as_long[l_offset+ pos]; // 
+						barrier(CLK_LOCAL_MEM_FENCE);
+					}
+					result[ lr_offset + pos ] = result_buffer[pos]
+				}
+				// this should no be running - the dimensions should be even
+				for (int pos =byte_pos + get_local_id(0) ; pos < dimensions;  pos += get_local_size(0))
+				{
+					for (unsigned int d = 0; d < dimensions; ++d)
+					{
+						uint point_value = point_dim[d]; //points[input_offset + d]
+						uint byte =  (point_value >> depth) & 0xFF;
+						uint offset = d* dimensions * BYTE_COUNT + byte * dimensions;
+						uint l_offset = offset/8;
+						result[result_offset + pos] |= lookup_table[offset+ pos ];
+						barrier(CLK_LOCAL_MEM_FENCE);
+					}
+				}
+				barrier(CLK_LOCAL_MEM_FENCE);
+
+			}
+
+		}
+}

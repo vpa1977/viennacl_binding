@@ -101,9 +101,9 @@ public class KdTreeParallelDistance extends KDTree {
 		m_width.mapBuffer(Buffer.WRITE);
 
 		for (int i = 0; i < m_EuclideanDistance.getRanges().length; ++i) {
-			m_min_range.write(i * DirectMemory.DOUBLE_SIZE,
+			m_min_range.write(i * DirectMemory.FLOAT_SIZE,
 					m_EuclideanDistance.getRanges()[i][NormalizableDistance.R_MIN]);
-			m_width.write(i * DirectMemory.DOUBLE_SIZE,
+			m_width.write(i * DirectMemory.FLOAT_SIZE,
 					m_EuclideanDistance.getRanges()[i][NormalizableDistance.R_WIDTH]);
 		}
 		m_min_range.commitBuffer();
@@ -191,7 +191,7 @@ public class KdTreeParallelDistance extends KDTree {
 	}
 
 	private void readDistances(double[] dist) {
-		m_distance_results.mapBuffer(Buffer.READ, 0, dist.length * DirectMemory.DOUBLE_SIZE);
+		m_distance_results.mapBuffer(Buffer.READ, 0, dist.length * DirectMemory.FLOAT_SIZE);
 		m_distance_results.readArray(0, dist);
 		m_distance_results.commitBuffer();
 	}

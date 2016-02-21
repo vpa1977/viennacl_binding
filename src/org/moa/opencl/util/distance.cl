@@ -21,10 +21,10 @@ __kernel void square_distance(__global const VALUE_TYPE* input,
 						__global const int* indices,
 						__global VALUE_TYPE* result,
 						const int attribute_size,
-						const int use_indices)
+						const int use_indices, const int indices_offset)
 {
 
-	int result_offset =  use_indices == 1 ? indices[get_global_id(0)] : get_global_id(0);
+	int result_offset =  use_indices == 1 ? indices[get_global_id(0)+indices_offset] : get_global_id(0);
 
 	int vector_offset = attribute_size * result_offset;
 	VALUE_TYPE point_distance = 0;

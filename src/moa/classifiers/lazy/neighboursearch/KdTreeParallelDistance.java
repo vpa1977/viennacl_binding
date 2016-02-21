@@ -42,7 +42,8 @@ public class KdTreeParallelDistance extends KDTree {
 	private Context m_context;
 	private Target m_target;
 	private Buffer m_min_range;
-	private Buffer m_width;
+	private Buffer m_max_range;
+	
 	private Buffer m_instance_types;
 	private Buffer m_distance_results;
 	private Operations m_operations;
@@ -98,16 +99,16 @@ public class KdTreeParallelDistance extends KDTree {
 		m_indices.commitBuffer();
 
 		m_min_range.mapBuffer(Buffer.WRITE);
-		m_width.mapBuffer(Buffer.WRITE);
+		m_max_range.mapBuffer(Buffer.WRITE);
 
 		for (int i = 0; i < m_EuclideanDistance.getRanges().length; ++i) {
 			m_min_range.write(i * DirectMemory.FLOAT_SIZE,
 					m_EuclideanDistance.getRanges()[i][NormalizableDistance.R_MIN]);
 			m_width.write(i * DirectMemory.FLOAT_SIZE,
-					m_EuclideanDistance.getRanges()[i][NormalizableDistance.R_WIDTH]);
+					m_EuclideanDistance.getRanges()[i][NormalizableDistance.R_MAX]);
 		}
 		m_min_range.commitBuffer();
-		m_width.commitBuffer();
+		m_max_range.commitBuffer();
 
 	}
 
@@ -211,6 +212,17 @@ public class KdTreeParallelDistance extends KDTree {
 			m_target.attributes.set(target, 0);
 			m_target.attributes.commit();
 		}
+		m_distance.squareDistanceFloat(target.dataset(), 
+			target.attributes,  
+			m_buffer.attributes(), 
+			m_min_range, 
+			m_max_range, 
+			m_instance_types, 
+			m_distance_results, 
+			target.numAttributes(), 
+			m_indices, 
+			start
+			);
 		/*
 		m_distance_kernel.set_global_size(0, (int) (end - start + 1));
 		m_distance_kernel.set_arg(0, m_indices);

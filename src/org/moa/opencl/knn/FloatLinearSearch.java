@@ -130,9 +130,9 @@ public class FloatLinearSearch extends Search{
 				m_max_values, 
 				m_attribute_types, 
 				m_result_buffer);
-    if (m_context.memoryType() == Context.HSA_MEMORY)
-      m_merge_sort.sort(m_result_buffer, m_result_index_buffer);
-    else
+ //   if (m_context.memoryType() == Context.HSA_MEMORY)
+ //     m_merge_sort.sort(m_result_buffer, m_result_index_buffer);
+ //   else
     {
       m_ops.prepareOrderKey(m_result_index_buffer, data.rows());
       m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer, data.rows());

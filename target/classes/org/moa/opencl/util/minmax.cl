@@ -119,3 +119,69 @@ __kernel void min_max_kernel(
 
   return;
 }
+
+
+/**
+	scan min/max value.
+	1 workgroup per attribute
+	output 1 entry per workgroup
+*/
+__kernel void min_max_kernel_indices(
+	__global const int * indices,
+	int class_attribute,
+	int stride, /* number of attributes */
+	int length, /* number of instances */
+   __global VALUE_TYPE *input, /* attribute vector */
+	 __global VALUE_TYPE* result_min, /* min values per attribute */
+	 __global VALUE_TYPE* result_max /* max value per attribute */
+){
+
+  int offset = get_group_id(0);
+  int local_index = get_local_id(0);
+  __local VALUE_TYPE scratch_max[GROUP_SIZE], scratch_min[GROUP_SIZE];
+  int gx = get_local_id(0);
+  int gloId = gx;
+
+
+  VALUE_TYPE accumulator_min, accumulator_max;
+  if (gloId<length){
+     accumulator_max = input[offset + indices[gx]*stride];
+     accumulator_min = accumulator_max;
+     gx = gx + get_local_size(0);
+  }
+
+  for (; gx<length; gx += get_local_size(0)){
+     VALUE_TYPE element = input[offset + indices[gx]*stride];
+     if (element < accumulator_min)
+     {
+     	accumulator_min = element;
+     }
+     if (element > accumulator_max)
+     {
+     	accumulator_max = element;
+     }
+     barrier(CLK_LOCAL_MEM_FENCE);
+  }
+
+  scratch_max[local_index]  = accumulator_max;
+  scratch_min[local_index]  = accumulator_min;
+
+  barrier(CLK_LOCAL_MEM_FENCE);
+  int tail = length;
+  REDUCE_STEP_MIN_MAX( tail, local_index, 128);
+  REDUCE_STEP_MIN_MAX( tail, local_index, 64);
+  REDUCE_STEP_MIN_MAX( tail, local_index, 32);
+  REDUCE_STEP_MIN_MAX( tail, local_index, 16);
+  REDUCE_STEP_MIN_MAX( tail, local_index, 8);
+  REDUCE_STEP_MIN_MAX( tail, local_index, 4);
+  REDUCE_STEP_MIN_MAX( tail, local_index, 2);
+  REDUCE_STEP_MIN_MAX( tail, local_index, 1);
+
+  if (local_index==0){
+     result_max[ get_group_id(0)]  = scratch_max[0];
+     result_min[ get_group_id(0)]  = scratch_min[0];
+  }
+
+  return;
+}
+

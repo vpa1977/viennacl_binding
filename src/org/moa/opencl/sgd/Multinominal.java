@@ -86,6 +86,7 @@ public class Multinominal extends AbstractUtil {
 			m_minibatch_size, 
 			  m_num_classes, weights,
 			  m_dot_products);
+		
 //		double[] attrs = BufHelper.rb(instance_buffer.attributes());
 //		double[] w = BufHelper.rb(weights);
 //		double[] dot_products = BufHelper.rb(m_dot_products);
@@ -128,6 +129,8 @@ public class Multinominal extends AbstractUtil {
 			int num_attributes, 
 			SparseInstanceBuffer source)
 	{
+		if (true)
+			throw new RuntimeException("Not tested");
 		minbatchGradients.fill((byte)0);
 		for (int class_index = 0; class_index < num_classes ; ++class_index)
 		{
@@ -164,7 +167,7 @@ public class Multinominal extends AbstractUtil {
 	{
 		minbatchGradients.fill((byte)0);
 		m_reduce_to_minibatch_dense.set_local_size(0, 256);
-		m_reduce_to_minibatch_dense.set_global_size(0, 256*(num_attributes/256) +  256);
+		m_reduce_to_minibatch_dense.set_global_size(0, 256*(1 + (int)(num_attributes/256)));
 		m_reduce_to_minibatch_dense.set_local_size(1,  1);
 		m_reduce_to_minibatch_dense.set_global_size(1,  num_classes);
 
@@ -177,7 +180,7 @@ public class Multinominal extends AbstractUtil {
 		m_reduce_to_minibatch_dense.invoke();
 	}
 
-	
+	 
 	/**     
 	 * computes dot product matrix for sparse matrix
 	 * @param column_indices

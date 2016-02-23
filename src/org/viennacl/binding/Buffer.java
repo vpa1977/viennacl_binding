@@ -17,6 +17,8 @@ public class Buffer {
 	
 	public Buffer(Context ctx, long size, int mode, Queue q)
 	{
+		if (size <= 0)
+			throw new RuntimeException("Unable to allocate " + size);
 		m_mode = mode;
 		m_context = ctx;
 		m_memory_type = ctx.memoryType();

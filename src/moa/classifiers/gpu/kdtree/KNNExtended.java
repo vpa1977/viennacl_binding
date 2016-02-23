@@ -11,6 +11,7 @@ import moa.classifiers.lazy.neighboursearch.KdTreeParallelDistance;
 import moa.classifiers.lazy.neighboursearch.LinearNNSearch;
 import moa.classifiers.lazy.neighboursearch.NearestNeighbourSearch;
 import moa.options.FlagOption;
+import moa.options.MultiChoiceOption;
 import weka.core.Instance;
 import weka.core.Instances;
 
@@ -23,12 +24,16 @@ public class KNNExtended extends kNN{
 	
 	private int C=0;
 	
-	private DenseInstanceBuffer m_buffer;
-	private Buffer m_indices;
+	private transient DenseInstanceBuffer m_buffer;
+	private transient Buffer m_indices;
 
-	private Context m_context;
+	private transient Context m_context;
 	
 	public FlagOption useGPUOption = new FlagOption("useGPU", 'g', "Run search on GPU or CPU");
+   public MultiChoiceOption contextUsedOption = new MultiChoiceOption("contextUsed", 'c', "Context Type",
+			new String[] { "CPU", "OPENCL", "HSA" }, new String[] { "CPU single thread",
+					"OpenCL offload. Use OPENCL_DEVICE Env. variable to select device", "HSA Offload" },
+			0);
 
 		
 	 @Override
@@ -39,8 +44,13 @@ public class KNNExtended extends kNN{
 		this.search = null;
 		if (m_buffer == null) 
 		{
-			m_context = new Context(Context.DEFAULT_MEMORY, null);
-			m_buffer = new DenseInstanceBuffer(m_context, this.limitOption.getValue(), inst.numAttributes());
+      if (contextUsedOption.getChosenIndex() == 0)
+        m_context = new Context(Context.Memory.MAIN_MEMORY, null);
+      else if (contextUsedOption.getChosenIndex() == 1)
+        m_context = new Context(Context.Memory.OPENCL_MEMORY, null);
+      else if (contextUsedOption.getChosenIndex() == 2)
+        m_context = new Context(Context.Memory.HSA_MEMORY, null);
+			m_buffer = new DenseInstanceBuffer(DenseInstanceBuffer.Kind.FLOAT_BUFFER,m_context, this.limitOption.getValue(), inst.numAttributes());
 			m_indices = new Buffer(m_context, DirectMemory.INT_SIZE * this.limitOption.getValue());
 		}
 		super.trainOnInstanceImpl(inst);

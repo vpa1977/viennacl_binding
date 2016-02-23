@@ -28,6 +28,8 @@ public class DenseInstanceBuffer implements UnitOfWork{
     private int m_current_row;
     private Kind m_kind;
 
+	private double m_class_replace_value;
+
     /**
      * 
      * @param context
@@ -36,6 +38,9 @@ public class DenseInstanceBuffer implements UnitOfWork{
      * @param mode - kernel mode (Buffer.READ - read-only);
      */
     public DenseInstanceBuffer(Context context, int rows, int numAttributes, int mode) {
+    	if (rows * numAttributes == 0)
+    		throw new RuntimeException("Buffer must be > 0 ");
+
     	m_kind = Kind.DOUBLE_BUFFER;
     	m_value_size = DirectMemory.DOUBLE_SIZE;
         m_rows = rows;
@@ -48,6 +53,9 @@ public class DenseInstanceBuffer implements UnitOfWork{
     	
     }
     public DenseInstanceBuffer(Context context, int rows, int numAttributes) {
+    	if (rows * numAttributes == 0)
+    		throw new RuntimeException("Buffer must be > 0 ");
+
     	m_kind = Kind.DOUBLE_BUFFER;
     	m_value_size = DirectMemory.DOUBLE_SIZE;
         m_rows = rows;
@@ -57,9 +65,12 @@ public class DenseInstanceBuffer implements UnitOfWork{
         m_class_buffer =  new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
         m_weights = new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
         m_current_row = 0;
+        m_class_replace_value= 0;
     }
     
     public DenseInstanceBuffer(Kind k, Context context, int rows, int numAttributes) {
+    	if (rows * numAttributes == 0)
+    		throw new RuntimeException("Buffer must be > 0 ");
     	m_kind = k;
     	if (k == Kind.DOUBLE_BUFFER)
     		m_value_size = DirectMemory.DOUBLE_SIZE;
@@ -72,6 +83,7 @@ public class DenseInstanceBuffer implements UnitOfWork{
         m_class_buffer =  new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
         m_weights = new Buffer(context, m_rows * m_value_size, Buffer.READ_WRITE);
         m_current_row = 0;
+        m_class_replace_value  = 0;
     }
     
     public Kind getKind() 
@@ -96,13 +108,13 @@ public class DenseInstanceBuffer implements UnitOfWork{
         	for (int j = 0; j < copy.length; ++j)
         		copy[j] = (float)data[j];
             m_attribute_values_buffer.writeArray(writeIndex, copy);
-            m_attribute_values_buffer.write(offset, (float)0);// zero out class attribute
+            m_attribute_values_buffer.write(offset, (float)m_class_replace_value);// zero out class attribute
 
         }
         else
         {
             m_attribute_values_buffer.writeArray(writeIndex, data);
-            m_attribute_values_buffer.write(offset, (double)0);// zero out class attribute
+            m_attribute_values_buffer.write(offset, (double)m_class_replace_value);// zero out class attribute
         }
         
         //DirectMemory.writeArray(attribute_handle, writeIndex, data); // write instances
@@ -211,6 +223,9 @@ public class DenseInstanceBuffer implements UnitOfWork{
 	public void reset()
 	{
 		m_current_row = 0;
+	}
+	public void setClassReplaceValue(double d) {
+		m_class_replace_value = d;
 	}
 
 

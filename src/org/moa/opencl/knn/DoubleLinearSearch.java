@@ -134,11 +134,11 @@ public class DoubleLinearSearch extends Search{
 	    System.out.println();
 */
 		int size = (int)(m_result_buffer.byteSize()/DirectMemory.DOUBLE_SIZE);
-    if (m_context.memoryType() == Context.HSA_MEMORY)
-    {
-      m_sort_merge.sort(m_result_buffer, m_result_index_buffer); // random access is better 
-    }
-    else
+   // if (m_context.memoryType() == Context.HSA_MEMORY && size < 16384)
+   // {
+   //   m_sort_merge.sort(m_result_buffer, m_result_index_buffer); // random access is better 
+   // }
+  //  else
     {
       m_ops.prepareOrderKey(m_result_index_buffer, size);
       m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer,size);

@@ -22,6 +22,8 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 	private Buffer m_residual_buffer_small;
 	private Buffer m_residual_buffer_large;
 	public Buffer m_tau;
+	public Buffer m_es_avg;
+	public Buffer m_el_avg;
 	
 	private Kernel m_updater;
 	private int m_num_attributes;
@@ -32,6 +34,7 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 	private Kernel m_update_tau;
 	private int m_num_batches;
 	private double m_learning_rate;
+	private int m_update = 0;
 
 	public SimpleUpdater(
 			Context ctx, 
@@ -45,6 +48,9 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 		for (int j = 0; j < initial_tau.length; ++j)
 			initial_tau[j] = 1;
 		m_tau = BufHelper.wb(m_context, initial_tau);
+		
+		m_es_avg = BufHelper.wb(m_context, initial_tau);
+		m_el_avg = BufHelper.wb(m_context, initial_tau);
 		
 		m_residual_buffer_small = new Buffer(ctx, num_attributes *num_classes* num_batches*m_value_size);
 		m_residual_buffer_large = new Buffer(ctx, num_attributes *num_classes* num_batches*m_value_size);
@@ -162,11 +168,14 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 		m_update_tau.set_global_size(0, 40 * 128);
 		m_update_tau.set_local_size(0, 128);
 		m_update_tau.set_arg(0,  m_tau);
-		m_update_tau.set_arg(1,  m_residual_buffer_small);
-		m_update_tau.set_arg(2,  m_residual_buffer_large);
-		m_update_tau.set_arg(3, m_num_batches);
-		m_update_tau.set_arg(4, m_num_attributes);
-		m_update_tau.set_arg(5, m_num_classes);
+		m_update_tau.set_arg(1,  m_es_avg);
+		m_update_tau.set_arg(2,  m_el_avg);
+		m_update_tau.set_arg(3,  m_residual_buffer_small);
+		m_update_tau.set_arg(4,  m_residual_buffer_large);
+		m_update_tau.set_arg(5, m_num_batches);
+		m_update_tau.set_arg(6, m_num_attributes);
+		m_update_tau.set_arg(7, m_num_classes);
+		m_update_tau.set_arg(8, (++m_update));
 		m_update_tau.invoke();
 		
 	}

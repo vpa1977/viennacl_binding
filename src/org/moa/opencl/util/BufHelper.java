@@ -32,4 +32,12 @@ public class BufHelper {
 		return b;
 	}
 
+	public static float[] rbf(Buffer b) {
+		float[] ret = new float[(int)(b.byteSize()/DirectMemory.FLOAT_SIZE)];
+		b.mapBuffer(Buffer.READ);
+		b.readArray(0,  ret);
+		b.commitBuffer();
+		return ret;
+	}
+
 }

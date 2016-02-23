@@ -14,7 +14,9 @@ public class Distance extends AbstractUtil {
 	private Kernel m_cosine_distance_kernel;
 	private Kernel m_cosine_distance_norm_kernel;
 	private Kernel m_square_distance_kernel_float;
-
+  
+  private int WG_COUNT = 4;
+  
 	public Distance(Context ctx)
 	{
 		if (!ctx.hasProgram("square_distance_double")) 
@@ -23,6 +25,11 @@ public class Distance extends AbstractUtil {
 		m_square_distance_kernel_float = ctx.getKernel("square_distance_float", "square_distance");
 		m_cosine_distance_kernel = ctx.getKernel("square_distance_double", "cosine_distance");
 		m_cosine_distance_norm_kernel = ctx.getKernel("square_distance_double","cosine_distance_norm");
+    if (ctx.memoryType() == Context.HSA_MEMORY)
+      WG_COUNT = 4;
+    else
+      WG_COUNT = 40;
+    
 		//m_square_distance_kernel_index= ctx.getKernel("square_distance_double", "square_distance_index");
 		//m_s_t = ctx.getKernel("square_distance_double", "short_test");
 	}
@@ -48,18 +55,20 @@ public class Distance extends AbstractUtil {
 			int size, 
 			Buffer indices
 			) {
-		int global_size = (int)size;
-		m_square_distance_kernel.set_global_size(0, global_size);
-		m_square_distance_kernel.set_arg(0, test_instance.attributes());
-		m_square_distance_kernel.set_arg(1, instance_buffer.attributes());
-		m_square_distance_kernel.set_arg(2, min_buffer);
-		m_square_distance_kernel.set_arg(3, max_buffer);
-		m_square_distance_kernel.set_arg(4, attribute_types);
-		m_square_distance_kernel.set_arg(5, indices);
-		m_square_distance_kernel.set_arg(6, result);
-		m_square_distance_kernel.set_arg(7, dataset.numAttributes());
-		m_square_distance_kernel.set_arg(8, 1);
-		m_square_distance_kernel.set_arg(9, 0);
+		
+		m_square_distance_kernel.set_global_size(0, 256*WG_COUNT);
+    m_square_distance_kernel.set_local_size(0, 256);
+    m_square_distance_kernel.set_arg(0, size);
+		m_square_distance_kernel.set_arg(1, test_instance.attributes());
+		m_square_distance_kernel.set_arg(2, instance_buffer.attributes());
+		m_square_distance_kernel.set_arg(3, min_buffer);
+		m_square_distance_kernel.set_arg(4, max_buffer);
+		m_square_distance_kernel.set_arg(5, attribute_types);
+		m_square_distance_kernel.set_arg(6, indices);
+		m_square_distance_kernel.set_arg(7, result);
+		m_square_distance_kernel.set_arg(8, dataset.numAttributes());
+		m_square_distance_kernel.set_arg(9, 1);
+		m_square_distance_kernel.set_arg(10, 0);
 		m_square_distance_kernel.invoke();
 	}
 	
@@ -74,18 +83,20 @@ public class Distance extends AbstractUtil {
 			int size, 
 			Buffer indices
 			) {
-		int global_size = (int)size;
-		m_square_distance_kernel_float.set_global_size(0, global_size);
-		m_square_distance_kernel_float.set_arg(0, test_instance.attributes());
-		m_square_distance_kernel_float.set_arg(1, instance_buffer.attributes());
-		m_square_distance_kernel_float.set_arg(2, min_buffer);
-		m_square_distance_kernel_float.set_arg(3, max_buffer);
-		m_square_distance_kernel_float.set_arg(4, attribute_types);
-		m_square_distance_kernel_float.set_arg(5, indices);
-		m_square_distance_kernel_float.set_arg(6, result);
-		m_square_distance_kernel_float.set_arg(7, dataset.numAttributes());
-		m_square_distance_kernel_float.set_arg(8, 1);
-		m_square_distance_kernel.set_arg(9, 0);
+		m_square_distance_kernel_float.set_global_size(0, 256*WG_COUNT);
+    m_square_distance_kernel_float.set_local_size(0, 256);
+    m_square_distance_kernel_float.set_arg(0, size);
+    
+		m_square_distance_kernel_float.set_arg(1, test_instance.attributes());
+		m_square_distance_kernel_float.set_arg(2, instance_buffer.attributes());
+		m_square_distance_kernel_float.set_arg(3, min_buffer);
+		m_square_distance_kernel_float.set_arg(4, max_buffer);
+		m_square_distance_kernel_float.set_arg(5, attribute_types);
+		m_square_distance_kernel_float.set_arg(6, indices);
+		m_square_distance_kernel_float.set_arg(7, result);
+		m_square_distance_kernel_float.set_arg(8, dataset.numAttributes());
+		m_square_distance_kernel_float.set_arg(9, 1);
+		m_square_distance_kernel_float.set_arg(10, 0);
 		m_square_distance_kernel_float.invoke();
 	}
 	
@@ -101,18 +112,28 @@ public class Distance extends AbstractUtil {
 			Buffer indices, 
 			int indices_offset
 			) {
+		
+		
+		float[] samples = BufHelper.rbf(instance_buffer.attributes());
+		float[] test = BufHelper.rbf(test_instance.attributes());
+		float[] min =  BufHelper.rbf(min_buffer);
+		float[] max =  BufHelper.rbf(max_buffer);
+		
 		int global_size = (int)size;
-		m_square_distance_kernel_float.set_global_size(0, global_size);
-		m_square_distance_kernel_float.set_arg(0, test_instance.attributes());
-		m_square_distance_kernel_float.set_arg(1, instance_buffer.attributes());
-		m_square_distance_kernel_float.set_arg(2, min_buffer);
-		m_square_distance_kernel_float.set_arg(3, max_buffer);
-		m_square_distance_kernel_float.set_arg(4, attribute_types);
-		m_square_distance_kernel_float.set_arg(5, indices);
-		m_square_distance_kernel_float.set_arg(6, result);
-		m_square_distance_kernel_float.set_arg(7, dataset.numAttributes());
-		m_square_distance_kernel_float.set_arg(8, 1);
-		m_square_distance_kernel.set_arg(9, indices_offset);
+		m_square_distance_kernel_float.set_global_size(0, 256*WG_COUNT);
+    m_square_distance_kernel_float.set_local_size(0, 256);
+    m_square_distance_kernel_float.set_arg(0, size);
+    
+		m_square_distance_kernel_float.set_arg(1, test_instance.attributes());
+		m_square_distance_kernel_float.set_arg(2, instance_buffer.attributes());
+		m_square_distance_kernel_float.set_arg(3, min_buffer);
+		m_square_distance_kernel_float.set_arg(4, max_buffer);
+		m_square_distance_kernel_float.set_arg(5, attribute_types);
+		m_square_distance_kernel_float.set_arg(6, indices);
+		m_square_distance_kernel_float.set_arg(7, result);
+		m_square_distance_kernel_float.set_arg(8, dataset.numAttributes());
+		m_square_distance_kernel_float.set_arg(9, 1);
+		m_square_distance_kernel_float.set_arg(10, indices_offset);
 		m_square_distance_kernel_float.invoke();
 	}
 
@@ -125,17 +146,20 @@ public class Distance extends AbstractUtil {
 			Buffer result 
 			) {
 		int global_size = (int)instance_buffer.rows();
-		m_square_distance_kernel_float.set_global_size(0, global_size);
-		m_square_distance_kernel_float.set_arg(0, test_instance.attributes());
-		m_square_distance_kernel_float.set_arg(1, instance_buffer.attributes());
-		m_square_distance_kernel_float.set_arg(2, min_buffer);
-		m_square_distance_kernel_float.set_arg(3, max_buffer);
-		m_square_distance_kernel_float.set_arg(4, attribute_types);
-		m_square_distance_kernel_float.set_arg(5, result);
+		m_square_distance_kernel_float.set_global_size(0, 256*WG_COUNT);
+    m_square_distance_kernel_float.set_local_size(0, 256);
+    m_square_distance_kernel_float.set_arg(0, global_size);
+    
+		m_square_distance_kernel_float.set_arg(1, test_instance.attributes());
+		m_square_distance_kernel_float.set_arg(2, instance_buffer.attributes());
+		m_square_distance_kernel_float.set_arg(3, min_buffer);
+		m_square_distance_kernel_float.set_arg(4, max_buffer);
+		m_square_distance_kernel_float.set_arg(5, attribute_types);
 		m_square_distance_kernel_float.set_arg(6, result);
-		m_square_distance_kernel_float.set_arg(7, dataset.numAttributes());
-		m_square_distance_kernel_float.set_arg(8, 0);
-		m_square_distance_kernel.set_arg(9, 0);
+		m_square_distance_kernel_float.set_arg(7, result);
+		m_square_distance_kernel_float.set_arg(8, dataset.numAttributes());
+		m_square_distance_kernel_float.set_arg(9, 0);
+		m_square_distance_kernel_float.set_arg(10, 0);
 		m_square_distance_kernel_float.invoke();
 	}
 
@@ -148,17 +172,20 @@ public class Distance extends AbstractUtil {
 			Buffer result 
 			) {
 		int global_size = (int)instance_buffer.rows();
-		m_square_distance_kernel.set_global_size(0, global_size);
-		m_square_distance_kernel.set_arg(0, test_instance.attributes());
-		m_square_distance_kernel.set_arg(1, instance_buffer.attributes());
-		m_square_distance_kernel.set_arg(2, min_buffer);
-		m_square_distance_kernel.set_arg(3, max_buffer);
-		m_square_distance_kernel.set_arg(4, attribute_types);
-		m_square_distance_kernel.set_arg(5, result);
+		m_square_distance_kernel.set_global_size(0, 256*WG_COUNT);
+    m_square_distance_kernel.set_local_size(0, 256);
+    m_square_distance_kernel.set_arg(0, global_size);
+    
+		m_square_distance_kernel.set_arg(1, test_instance.attributes());
+		m_square_distance_kernel.set_arg(2, instance_buffer.attributes());
+		m_square_distance_kernel.set_arg(3, min_buffer);
+		m_square_distance_kernel.set_arg(4, max_buffer);
+		m_square_distance_kernel.set_arg(5, attribute_types);
 		m_square_distance_kernel.set_arg(6, result);
-		m_square_distance_kernel.set_arg(7, dataset.numAttributes());
-		m_square_distance_kernel.set_arg(8, 0);
+		m_square_distance_kernel.set_arg(7, result);
+		m_square_distance_kernel.set_arg(8, dataset.numAttributes());
 		m_square_distance_kernel.set_arg(9, 0);
+		m_square_distance_kernel.set_arg(10, 0);
 		m_square_distance_kernel.invoke();
 	}
 	
@@ -167,7 +194,7 @@ public class Distance extends AbstractUtil {
 			DenseInstanceBuffer instance_buffer, 
 			Buffer min_buffer, 
 			Buffer max_buffer, 
-			Buffer attribute_types, 
+			Buffer attribute_types,  
 			Buffer result 
 			) {
 		int global_size = (int)instance_buffer.rows();
@@ -181,6 +208,7 @@ public class Distance extends AbstractUtil {
 		m_cosine_distance_norm_kernel.set_arg(6, result);
 		m_cosine_distance_norm_kernel.set_arg(7, dataset.numAttributes());
 		m_cosine_distance_norm_kernel.set_arg(8, 0);
+		
 		m_cosine_distance_norm_kernel.invoke();
 	}
 	

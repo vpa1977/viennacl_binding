@@ -83,23 +83,23 @@ __kernel void reduce_to_minibatch_dense(
 
 	int column = get_global_id(0);
 	int dot_product_column = get_global_id(1);
-	int class_offset = dot_product_column * num_attributes;
+	int class_offset = dot_product_column * num_attributes; // offset for the gradient
 	__local VALUE_TYPE multiplier;
 	__local VALUE_TYPE buffer[256];
 	int row_start = 0;
 	int row_end = batch_size;
-	int batch_row_offset = class_offset*num_attributes;
+
 	if (lid == 0)
 		multiplier = dot_product[dot_product_column];
 	buffer[lid] = 0;
 	for (int row = row_start; row < row_end; ++row) // serially process rows
 	{
-		buffer[lid] += select(0.0, elements[(int)mad((float)row,(float)num_attributes,(float)column)], (COND_TYPE)(column < num_attributes));
+		buffer[lid] += select(0.0, multiplier * elements[(int)mad((float)row,(float)num_attributes,(float)column)], (COND_TYPE)(column < num_attributes));
 	}
 	barrier(CLK_LOCAL_MEM_FENCE);
 	VALUE_TYPE upd = select(0.0, buffer[lid]/batch_size, (COND_TYPE)(column < num_attributes));
 	int index = select(0, column, column< num_attributes);
-	batch_update_matrix[batch_row_offset +  index] += upd;
+	batch_update_matrix[class_offset +  index] += upd;
 }
 
 /*

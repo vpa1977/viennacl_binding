@@ -45,9 +45,9 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:1.2.1:exec</goal>
             </goals>
             <properties>
-                <exec.args>-Djava.library.path=C:\master_in_progress\java\viennacl-binding -classpath %classpath Run</exec.args>
+                <exec.args>-Djava.library.path=/home/bsp/vienna-cl-port/viennacl-java-binding/Release/ -classpath %classpath Run</exec.args>
                 <exec.executable>java</exec.executable>
-                <exec.workingdir>C:\master_in_progress\java\viennacl-binding</exec.workingdir>
+                <exec.workingdir>/home/bsp/vienna-cl-port/viennacl-java-binding/Release/</exec.workingdir>
                 <Env.LD_LIBRARY_PATH>:/home/bsp/HSA-Runtime-AMD/lib/</Env.LD_LIBRARY_PATH>
             </properties>
         </action>

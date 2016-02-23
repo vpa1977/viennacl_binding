@@ -3,11 +3,13 @@ package test.org.moa.gpu;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 import org.junit.Test;
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.UnitOfWork;
 import org.moa.opencl.sgd.HogwildScheme;
+import org.moa.opencl.util.BufHelper;
 import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 
@@ -47,7 +49,7 @@ public class HogwildSchemeTest {
 		mainClone.setDataset(dataset);
 		return mainClone;
 	}
-	class c extends SGDMultiClass {
+	class ReferenceSGD extends SGDMultiClass {
 		public DoubleVector[] getWeights() 
 		{
 			return m_weights;
@@ -55,7 +57,7 @@ public class HogwildSchemeTest {
 	}
 
 
-	@Test
+	
 	public void testScheme() {
 		Context ctx = new Context(Context.DEFAULT_MEMORY, null);
 		Instances dataset= prepareDataset(790);
@@ -65,7 +67,7 @@ public class HogwildSchemeTest {
 		scheme.populate(true);
 		
 		
-		SGDMultiClass sgd = new c();
+		SGDMultiClass sgd = new ReferenceSGD();
 		sgd.prepareForUse();
 		
 		for (int i = 0; i < 600; ++i)
@@ -91,5 +93,56 @@ public class HogwildSchemeTest {
 		}
 		
 	}
+	
+	@Test
+	public void testSingleStep()
+	{
+		Context ctx = new Context(Context.DEFAULT_MEMORY, null);
+		Instances dataset= prepareDataset(5);
+		Instance mainClone = makeMasterClone(dataset, 1);
+		HogwildScheme scheme = new HogwildScheme(ctx, dataset, 1, 1);
+		scheme.populate(true);
+		
+		Instance makeError =(Instance) mainClone.copy();
+		for (int i = 0; i < makeError.numAttributes(); ++i)
+			makeError.setValue(i, -0.2);
+		makeError.setClassValue(0);
+		Random rnd = new Random();
+		ReferenceSGD sgd = new ReferenceSGD();
+		sgd.prepareForUse();
+		for (int i = 0; i < 10000; ++i)
+		{
+			makeError =(Instance) mainClone.copy();
+			for (int k = 0; k < makeError.numAttributes(); ++k)
+				makeError.setValue(k, rnd.nextDouble());
+			makeError.setClassValue(0);
+			
+			Instance useInstance =i %2 == 0? mainClone : makeError; 
+			UnitOfWork work = scheme.take();
+			while (work.append(useInstance)) {}
+			work.commit();
+			
+			scheme  .put(work);
+			scheme.updateWeightsAndTau();
+			System.out.println("commited ");
+			sgd.trainOnInstance(useInstance);
+			
+			
+			DoubleVector[] weights = sgd.getWeights();
+			double[] w_hg = BufHelper.rb(scheme.getWeights());
+			double[] tau = BufHelper.rb(scheme.getTau());
+			double[] small = BufHelper.rb(scheme.getErrorSmall());
+			double[] large = BufHelper.rb(scheme.getErrorLarge());
+		}
+		
+		DoubleVector[] weights = sgd.getWeights();
+		double[] w_hg = BufHelper.rb(scheme.getWeights());
+		double[] tau = BufHelper.rb(scheme.getTau());
+		double[] small = BufHelper.rb(scheme.getErrorSmall());
+		double[] large = BufHelper.rb(scheme.getErrorLarge());
+		System.out.println();;
+
+	}
+
 
 }

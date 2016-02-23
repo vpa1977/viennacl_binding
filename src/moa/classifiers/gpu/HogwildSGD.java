@@ -23,6 +23,8 @@ import org.viennacl.binding.Context;
 import org.viennacl.binding.GlobalContext;
 
 import moa.classifiers.AbstractClassifier;
+import moa.classifiers.functions.SGDMultiClass;
+import moa.core.DoubleVector;
 import moa.core.Measurement;
 import moa.core.ObjectRepository;
 import moa.options.ClassOption;
@@ -49,12 +51,20 @@ public class HogwildSGD extends AbstractClassifier  {
     }
     
 	
+	class ReferenceSGD extends SGDMultiClass {
+		public DoubleVector[] getWeights() 
+		{
+			return m_weights;
+		}
+	}
+	
     private ZeroR m_default_classifier = new ZeroR();
     private transient Context m_context;
     private transient HogwildScheme m_hogwild_scheme;
-    
+    private transient ReferenceSGD m_reference_sgd;
     public HogwildSGD()
     {
+    	
     }
     
     public MultiChoiceOption updaterOption = new MultiChoiceOption(
@@ -88,6 +98,8 @@ public class HogwildSGD extends AbstractClassifier  {
 		else if (contextUsedOption.getChosenIndex() == 2)
 			m_context = new Context(Context.Memory.HSA_MEMORY, null);
 		m_hogwild_scheme = null;
+		//m_reference_sgd = new ReferenceSGD();
+		//m_reference_sgd.prepareForUseImpl(monitor, repository);
 	}
 
 	@Override
@@ -114,6 +126,7 @@ public class HogwildSGD extends AbstractClassifier  {
     
     @Override
     public void trainOnInstanceImpl(Instance inst) {
+    //	m_reference_sgd.trainOnInstance(inst);
     	if (m_hogwild_scheme == null)
     	{
     		m_hogwild_scheme = new HogwildScheme(m_context, inst.dataset(), this.parallelBatchesOption.getValue(),
@@ -130,12 +143,14 @@ public class HogwildSGD extends AbstractClassifier  {
     	if (m_work == null)
     	{
     		m_work = m_hogwild_scheme.take();
+    		m_work.begin(Buffer.WRITE);
     	}
     	if (!m_work.append(inst))
     	{
-    		m_work.commit();
+    		
     		m_hogwild_scheme.put(m_work);
     		m_work = m_hogwild_scheme.take();
+    		m_work.begin(Buffer.WRITE);
     		m_work.append(inst);
     	}
     }

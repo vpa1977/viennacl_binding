@@ -8,6 +8,7 @@ import org.viennacl.binding.DirectMemory;
 import org.viennacl.binding.Kernel;
 
 public class Operations extends AbstractUtil {
+	private static final int WG_COUNT = 40;
 	private Context m_context;
 	private Kernel m_normalize_kernel;
   private Kernel m_normalize_kernel_float;
@@ -35,7 +36,7 @@ public class Operations extends AbstractUtil {
 	
 
 	public void prepareOrderKey(Buffer order_key, int size) {
-		m_prepare_order_key.set_global_size(0, 128*(size/128+1));
+		m_prepare_order_key.set_global_size(0, 128*WG_COUNT);
 		m_prepare_order_key.set_local_size(0, 128);
 		m_prepare_order_key.set_arg(0, order_key);
 		m_prepare_order_key.set_arg(1, size);
@@ -44,7 +45,7 @@ public class Operations extends AbstractUtil {
 
 	public void doubleToInt32(Buffer double_buffer, Buffer attribute_map, Buffer int32_buffer, int rows,
 			int num_attributes) {
-		m_double2uint_kernel.set_global_size(0, ((rows * num_attributes)/128+1)* 128);
+		m_double2uint_kernel.set_global_size(0, 128*WG_COUNT);
 		m_double2uint_kernel.set_local_size(0, 128);
 		m_double2uint_kernel.set_arg(0, double_buffer);
 		m_double2uint_kernel.set_arg(1, attribute_map);
@@ -75,8 +76,8 @@ public class Operations extends AbstractUtil {
   public void normalizeFloat(Buffer input, Buffer output, Buffer min_values, Buffer max_values, Buffer attribute_map,
 			int num_attributes, int num_instances) {
 	  int size = num_instances;
-		m_normalize_kernel_float.set_global_size(0, 128*(size/128+1));
-		m_normalize_kernel_float.set_local_size(0, 128);
+		m_normalize_kernel_float.set_global_size(0, 256 * WG_COUNT);
+		m_normalize_kernel_float.set_local_size(0, 256);
 		m_normalize_kernel_float.set_arg(0, input);
 		m_normalize_kernel_float.set_arg(1, output);
 		m_normalize_kernel_float.set_arg(2, min_values);
@@ -98,7 +99,7 @@ public class Operations extends AbstractUtil {
 		m_random_shift_kernel.set_global_size(0, num_attributes);
 		m_random_shift_kernel.set_local_size(0, 1);
 		int size = num_rows;
-		m_random_shift_kernel.set_global_size(1, 128*(size/128+1));
+		m_random_shift_kernel.set_global_size(1, 128*WG_COUNT);
 		m_random_shift_kernel.set_local_size(1, 128);
 		m_random_shift_kernel.set_arg(0, data_point_buffer);
 		m_random_shift_kernel.set_arg(1, random_shift);
@@ -106,30 +107,7 @@ public class Operations extends AbstractUtil {
 		m_random_shift_kernel.invoke();
 	}
 
-	public void binarySearch(Buffer morton_order_keys, Buffer morton_codes, Buffer search_term, int code_length,
-			int length) {
-		Buffer output = new Buffer(m_context, DirectMemory.INT_SIZE * 4);
-
-		m_binary_search_kernel.set_local_size(0, 256);
-		int numSubdivisions = length / 256;
-		if (numSubdivisions < 256)
-			numSubdivisions = 256;
-		m_binary_search_kernel.set_global_size(0, numSubdivisions);
-		int globalLowerBound = 0;
-		int globalUpperBound = length - 1;
-		int subdivSize = (globalUpperBound - globalLowerBound + 1) / numSubdivisions;
-		int isElementFound = 0;
-
-		// check before start
-		// check after end
-		m_binary_search_kernel.set_arg(0, output);
-		m_binary_search_kernel.set_arg(1, morton_order_keys);
-		m_binary_search_kernel.set_arg(2, morton_codes);
-		m_binary_search_kernel.set_arg(3, search_term);
-		m_binary_search_kernel.set_arg(4, code_length);
-		m_binary_search_kernel.set_arg(5, globalLowerBound);
-		m_binary_search_kernel.set_arg(6, subdivSize);
-	}
+	
 	
 	public native void dense_ax(Buffer matrix, Buffer vector, Buffer output, int rows, int columns);
 

@@ -9,9 +9,7 @@ import java.util.Random;
 
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.FJLT;
-import org.moa.gpu.SparseInstanceBuffer;
-import org.moa.opencl.knn.DoubleLinearSearch;
-import org.moa.opencl.knn.SimpleZOrderSearch;
+import org.moa.opencl.util.BufHelper;
 import org.moa.opencl.util.CLogsVarKeyJava;
 import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.MinMax;
@@ -20,7 +18,6 @@ import org.moa.opencl.util.TreeUtil;
 import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
-import org.viennacl.binding.GlobalContext;
 
 import moa.classifiers.AbstractClassifier;
 import moa.classifiers.lazy.neighboursearch.EuclideanDistance;
@@ -30,7 +27,6 @@ import moa.options.FlagOption;
 import moa.options.IntOption;
 import moa.options.MultiChoiceOption;
 import moa.tasks.TaskMonitor;
-import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
 
@@ -54,9 +50,11 @@ public class RpTree extends AbstractClassifier {
 		System.loadLibrary("viennacl-java-binding");
 	}
 
-	public FlagOption defeatistOption = new FlagOption("defeatist", 'd', "Use defeatist search");
+	public FlagOption defeatistOption = new FlagOption("defeatist", 'f', "Use defeatist search");
 	public IntOption kOption = new IntOption("k", 'k', "k-Nearest", 5);
 	public IntOption windowSizeOption = new IntOption("windowSize", 'w', "Sliding Window Size", 65535);
+	public IntOption maxTreeDepthOption = new IntOption("maxTreeDepth", 'd', "Max Tree Depth",8 );
+	public IntOption numProjectionsOption = new IntOption("numProjections", 'n', "Number of projections", 20 );
 	public MultiChoiceOption contextUsedOption = new MultiChoiceOption("contextUsed", 'c', "Context Type",
 			new String[] { "CPU", "OPENCL", "HSA" }, new String[] { "CPU single thread",
 					"OpenCL offload. Use OPENCL_DEVICE Env. variable to select device", "HSA Offload" },
@@ -812,11 +810,7 @@ public class RpTree extends AbstractClassifier {
 			m_context = new Context(Context.Memory.OPENCL_MEMORY, null);
 		else if (contextUsedOption.getChosenIndex() == 2)
 			m_context = new Context(Context.Memory.HSA_MEMORY, null);
-		
-		m_gpu_distance = new Distance(m_context);
-		m_min_max = new MinMax(m_context);
-		m_sort = new CLogsVarKeyJava(m_context, true, "unsigned int", "unsigned int");
-		m_operations = new Operations(m_context);
+		m_stats = new Stats();
 	}
 
 	@Override
@@ -878,14 +872,18 @@ public class RpTree extends AbstractClassifier {
 		
 
 		public boolean shouldTraverse(RpNode node) {
+			
 			if (node.proj_type == 1) {
-				double distance = Math.abs(m_query_projections[node.proj_to_use] - m_projections[node.proj_to_use]);
-				distance += Math.abs(m_query_projections[node.proj_to_use]);
-				if (distance > node.threshold)
+				double distance = Math.abs(m_projections[node.proj_to_use] - m_query_projections[node.proj_to_use]);
+				double threshold_distance = Math.abs(node.threshold - m_query_projections[node.proj_to_use]);
+				// a threshold split
+				if (distance >= threshold_distance) // distance between points is more/equals than distance to the threshold
 					return true;
 			} else if (node.proj_type == 2) {
 				double distance = Math.abs(m_query_projections[node.proj_to_use] - m_projections[node.proj_to_use]);
-				if (distance < node.threshold)
+				double threshold_distance = Math.abs(node.threshold- node.mean[node.proj_to_use]);
+				// a center split - distance between points exceeds radius.
+				if (distance >= threshold_distance) 
 					return true;
 			}
 			return false;
@@ -961,11 +959,11 @@ public class RpTree extends AbstractClassifier {
 			assignNodes();
 
 		if (m_evaluation_instance == null)
-			m_evaluation_instance = new DenseInstanceBuffer(m_context, 1, inst.numAttributes());
+			m_evaluation_instance = new DenseInstanceBuffer(DenseInstanceBuffer.Kind.FLOAT_BUFFER,m_context, 1, inst.numAttributes());
 		m_evaluation_instance.begin(Buffer.WRITE);
 		m_evaluation_instance.set(inst, 0);
 		m_evaluation_instance.commit();
-		++num_predictions; 
+		++m_stats.num_predictions; 
 		double[] projections = new double[m_num_projections];
 		m_tree.computeProjections(inst, projections);
 		Heap h = new Heap(kOption.getValue(), inst.numClasses(), projections);
@@ -978,9 +976,16 @@ public class RpTree extends AbstractClassifier {
 		//System.out.println("Predicted with " + num_prediction_calcs + " out of "+ m_window.size());
 		return h.distribution();
 	}
+	
+	class Stats
+	{
+		long num_prediction_calcs=0;
+		long num_predictions=0;
+		long num_nodes_visited = 0;
+	}
+	
+	private Stats m_stats;
 
-	long num_prediction_calcs=0;
-	long num_predictions=0;
 	private FJLT[] m_fjlt;
 	private DenseInstanceBuffer m_evaluation_instance;
 	private DenseInstanceBuffer m_source_transform_buffer;
@@ -1005,7 +1010,8 @@ public class RpTree extends AbstractClassifier {
 		ArrayList<InstanceData> candidates = m_buckets.get(bucket);
 		if (candidates == null)
 			return;
-		num_prediction_calcs += candidates.size();
+		m_stats.num_prediction_calcs += candidates.size();
+		m_stats.num_nodes_visited++;
 		if (m_context.memoryType() != Context.MAIN_MEMORY)
 		{
 			DenseInstanceBuffer bucketBuffer =m_gpu_buckets.get(bucket);
@@ -1013,6 +1019,7 @@ public class RpTree extends AbstractClassifier {
 			{
 				return;
 			}
+					
 			m_gpu_distance.squareDistanceFloat(m_dataset,
 					m_evaluation_instance,
 					bucketBuffer,
@@ -1020,23 +1027,37 @@ public class RpTree extends AbstractClassifier {
 					m_max_range,
 					m_attribute_types,
 					m_distances);
-			m_operations.prepareOrderKey(m_sort_indices, candidates.size());
-			m_sort.sortFixedBuffer(m_distances, m_sort_indices, candidates.size());
-			int k = h.getK();
-			float[] distances = new float[k];
-			int[] indices = new int[k];
-			m_distances.mapBuffer(Buffer.READ);
-			m_distances.readArray(0, distances);
-			m_distances.commitBuffer();
 			
-			m_sort_indices.mapBuffer(Buffer.READ);
-			m_sort_indices.readArray(0, indices);
-			m_sort_indices.commitBuffer();
-			for (int i = 0; i < k ; ++ i)
+			if (candidates.size() < h.getK())
 			{
-				InstanceData data = candidates.get(indices[i]);
-				Entry newEntry = new Entry( distances[i], (int)data.m_instance.classValue(), data );
-				h.add(newEntry);
+				float[] distances = BufHelper.rbf(m_distances);
+				for (int i = 0; i < candidates.size() ; ++ i)
+				{
+					InstanceData data = candidates.get(i);
+					Entry newEntry = new Entry( distances[i], (int)data.m_instance.classValue(), data );
+					h.add(newEntry);
+				}
+			}
+			else
+			{
+				m_operations.prepareOrderKey(m_sort_indices, candidates.size());
+				m_sort.sortFixedBuffer(m_distances, m_sort_indices, candidates.size());
+				int k = h.getK();
+				float[] distances = new float[k];
+				int[] indices = new int[k];
+				m_distances.mapBuffer(Buffer.READ);
+				m_distances.readArray(0, distances);
+				m_distances.commitBuffer();
+				
+				m_sort_indices.mapBuffer(Buffer.READ);
+				m_sort_indices.readArray(0, indices);
+				m_sort_indices.commitBuffer();
+				for (int i = 0; i < k ; ++ i)
+				{
+					InstanceData data = candidates.get(indices[i]);
+					Entry newEntry = new Entry( distances[i], (int)data.m_instance.classValue(), data );
+					h.add(newEntry);
+				}
 			}
 			
 		}
@@ -1056,6 +1077,7 @@ public class RpTree extends AbstractClassifier {
 		m_tree = null;
 		m_window = null;
 		m_buckets = null;
+		
 	}
 
 	@Override
@@ -1063,10 +1085,10 @@ public class RpTree extends AbstractClassifier {
 		// project
 		if (m_tree == null) {
 			m_dataset = inst.dataset();
-			m_num_projections = 20;
-			m_depth = 8;
+			m_num_projections = numProjectionsOption.getValue();
+			m_depth = maxTreeDepthOption.getValue();
 			m_window = new ArrayDeque<InstanceData>(windowSizeOption.getValue());
-			if (m_fjlt == null)
+			if (m_fjlt == null )
 			{
 				init_gpu_part(inst);
 			}
@@ -1112,6 +1134,15 @@ public class RpTree extends AbstractClassifier {
 		m_sort_indices  = new Buffer(m_context, DirectMemory.INT_SIZE * windowSizeOption.getValue());
 		m_attribute_types= new Buffer(m_context, DirectMemory.INT_SIZE *  m_dataset.numAttributes());
 		m_attribute_types.fill((byte)0);
+		
+		if (m_context.memoryType() != Context.MAIN_MEMORY)
+		{
+			m_gpu_distance = new Distance(m_context);
+			m_min_max = new MinMax(m_context);
+			m_sort = new CLogsVarKeyJava(m_context, true, "unsigned int", "unsigned int");
+			m_operations = new Operations(m_context);
+		}
+
 
 	}
 
@@ -1148,7 +1179,7 @@ public class RpTree extends AbstractClassifier {
 			{
 				Integer next = nodes.next();
 				ArrayList<InstanceData> data = m_buckets.get(next);
-				System.out.println("Adding gpu bucket size " + data.size());
+				
 				DenseInstanceBuffer buf = new DenseInstanceBuffer(DenseInstanceBuffer.Kind.FLOAT_BUFFER, m_context, 
 						data.size(), 
 						m_dataset.numAttributes());
@@ -1157,10 +1188,10 @@ public class RpTree extends AbstractClassifier {
 					buf.append(i.m_instance);
 				buf.commit();
 				m_gpu_buckets.put(next, buf);
-				System.out.println("Adding gpu bucket size done "+ next);
+				
 			}
 			if (m_buckets.size() != m_gpu_buckets.size())
-				System.out.println();;
+				throw new RuntimeException("The gpu buckets were not cleaned up properly");
 		 }
 		
 	}
@@ -1168,8 +1199,18 @@ public class RpTree extends AbstractClassifier {
 	@Override
 	protected Measurement[] getModelMeasurementsImpl() {
 		// TODO Auto-generated method stub
+		double bucket_size = 0;
+		Iterator<Integer> nodes = m_buckets.keySet().iterator();
+		while(nodes.hasNext()) 
+		{
+			Integer next = nodes.next();
+			ArrayList<InstanceData> data = m_buckets.get(next);
+			bucket_size += data.size();
+		}
 		return new Measurement[]{
-				new Measurement("Average number of calculations per prediction", ((double)num_prediction_calcs)/num_prediction_calcs  )
+				new Measurement("Average number of calculations per prediction", ((double)m_stats.num_prediction_calcs)/m_stats.num_predictions  ),
+				new Measurement("Average bucket size", (bucket_size)/m_buckets.size()  ),
+				new Measurement("Average leaves visited", ((double)m_stats.num_nodes_visited)/m_stats.num_predictions  )
 		};
 	}
 

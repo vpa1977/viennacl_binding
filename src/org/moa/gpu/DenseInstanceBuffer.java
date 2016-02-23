@@ -108,19 +108,18 @@ public class DenseInstanceBuffer implements UnitOfWork{
         	for (int j = 0; j < copy.length; ++j)
         		copy[j] = (float)data[j];
             m_attribute_values_buffer.writeArray(writeIndex, copy);
-            m_attribute_values_buffer.write(offset, (float)m_class_replace_value);// zero out class attribute
-
+            m_attribute_values_buffer.writeFloat(offset, (float)m_class_replace_value);// zero out class attribute
+            m_class_buffer.writeFloat(pos * m_value_size, (float)inst.classValue());
+            m_weights.writeFloat(pos * m_value_size, (float)inst.weight());
         }
         else
         {
             m_attribute_values_buffer.writeArray(writeIndex, data);
-            m_attribute_values_buffer.write(offset, (double)m_class_replace_value);// zero out class attribute
+           m_attribute_values_buffer.write(offset, (double)m_class_replace_value);// zero out class attribute
+            m_class_buffer.write(pos * m_value_size, inst.classValue());
+            m_weights.write(pos * m_value_size, inst.weight());
         }
         
-        //DirectMemory.writeArray(attribute_handle, writeIndex, data); // write instances
-        
-        m_class_buffer.write(pos * m_value_size, inst.classValue()); 
-        m_weights.write(pos * m_value_size, inst.weight());
     }
 
     public DenseInstance read(int pos, Instances dataset) {

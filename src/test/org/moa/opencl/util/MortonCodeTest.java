@@ -20,7 +20,7 @@ public class MortonCodeTest {
   
   public static void main(String[] args)
   {
-     new MortonCodeTest().testCreate();
+     new MortonCodeTest().testCreate2();
   }
 	
 	@Test
@@ -48,8 +48,8 @@ public class MortonCodeTest {
 		for (int x = 0; x < 100; ++x)
 			for (int y =0 ; y < 100; ++y )
 			{
-				source_points[offset++] = x;
-				source_points[offset++] = y;
+				source_points[offset++] = 100- x;
+				source_points[offset++] = 100 -y;
 			}
 		Buffer src = new Buffer(ctx, source_points.length * DirectMemory.INT_SIZE);
 		src.mapBuffer(Buffer.WRITE);
@@ -109,7 +109,7 @@ public class MortonCodeTest {
 	@Test
 	public void testCreate2() {
 		Context ctx = new Context(Context.DEFAULT_MEMORY, null);
-		int num_points = 1000;
+		int num_points = 10*10*10;
 		int num_dimensions = 3;
 		MortonCode morton = new MortonCode(ctx, num_dimensions);
 		
@@ -133,9 +133,9 @@ public class MortonCodeTest {
 			{
 				for (int z =0 ; z < 10; ++z )
 				{
-					source_points[offset++] = x;
-					source_points[offset++] = y;
-					source_points[offset++] = z;
+					source_points[offset++] = 11-x;
+					source_points[offset++] = 11-y;
+					source_points[offset++] = 11- z;
 				}
 			}
 		Buffer src = new Buffer(ctx, source_points.length * DirectMemory.INT_SIZE);

@@ -80,7 +80,6 @@ public class HogwildSGD extends AbstractClassifier  {
     
 	public IntOption parallelBatchesOption = new IntOption( "parallelBatches", 'p', "Number of parallel batches", 16, 1, Integer.MAX_VALUE);
 	public IntOption minbatchSizeOption = new IntOption( "minibatchSize", 's', "Minibatch size", 16, 1, Integer.MAX_VALUE);
-    public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'b', "Number of minibatches in Sliding Window Size", 10, 2, Integer.MAX_VALUE);
 	public MultiChoiceOption contextUsedOption = new MultiChoiceOption("contextUsed", 'c', "Context Type",
 			new String[] { "CPU", "OPENCL", "HSA" }, new String[] { "CPU single thread",
 					"OpenCL offload. Use OPENCL_DEVICE Env. variable to select device", "HSA Offload" },

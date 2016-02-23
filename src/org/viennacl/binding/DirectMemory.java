@@ -34,6 +34,15 @@ public class DirectMemory {
 		//System.out.println("Data write complete" );
 	}
 	
+	public static void writeFloat(long handle, float value) {
+		if (handle == 0)
+			throw new RuntimeException("Attempt to access null pointer");
+		//System.out.println("Writing to "+ handle + " 1 double" );
+		m_direct_memory.putFloat(handle, value);
+		
+	}
+
+	
 	public static void set(long handle, long size, byte value)
 	{
 		if (handle == 0)
@@ -215,5 +224,7 @@ public class DirectMemory {
 		long write_to =   writeIndex;
 		m_direct_memory.copyMemory(data, read_from, null, m_cpu_memory+write_to, data.length*m_direct_memory.ARRAY_BYTE_INDEX_SCALE );		
 	}
+
+
 
 }

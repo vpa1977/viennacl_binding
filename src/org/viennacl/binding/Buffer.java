@@ -118,6 +118,12 @@ public class Buffer {
 		DirectMemory.writeInt(m_cpu_memory+handle, value);
 	}
 	
+	public void writeFloat(long handle, float value) {
+		runtimeCheck(handle);
+		DirectMemory.writeFloat(m_cpu_memory + handle, value);
+	}
+
+	
 	public int readInt(long handle)
 	{
 		runtimeCheck(handle);
@@ -282,6 +288,7 @@ public class Buffer {
 	private long m_native_context;
 	// readable/writable CPU memory;
 	private long m_cpu_memory;
+
 
 
 

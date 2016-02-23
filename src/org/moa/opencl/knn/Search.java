@@ -94,6 +94,7 @@ public abstract class Search  extends AbstractOptionHandler{
               break;
           }
         } catch (Exception ex) {
+        	ex.printStackTrace();
           throw new Error("Data has no class attribute!");
         }
         total += weight;      

@@ -137,7 +137,7 @@ public class FJLTZorderSearch extends Search{
       //System.out.println("reinit variables");
 			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
-			m_transform = new ProjectedZOrderTransform(m_context, instance.dataset().numAttributes(), data.rows(), (int)Math.sqrt(instance.dataset().numAttributes()));
+			m_transform = new ProjectedZOrderTransform(m_context, instance.dataset().numAttributes(), data.rows(), 4);
 			m_sort = new DoubleMergeSort(m_context, data.rows());
 		
      

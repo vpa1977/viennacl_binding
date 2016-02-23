@@ -28,8 +28,8 @@ public class MortonCode extends AbstractUtil {
 		if (!context.hasProgram("morton_code_uint32")) 
 			create_kernel(context);
 		m_morton_kernel = context.getKernel("morton_code_uint32", "morton_code");
-		m_morton_kernel_group = context.getKernel("morton_code_uint32", "morton_code_group");
-	}
+		m_morton_kernel_group = context.getKernel("morton_code_uint32", "morton_code_group2");
+	} 
 	
 	private void create_kernel(Context context) {
 		StringBuffer data = loadKernel("morton.cl");
@@ -38,11 +38,9 @@ public class MortonCode extends AbstractUtil {
 	
 	public void computeMortonCode(Buffer output, Buffer source_points, int num_points)
 	{
-		if (m_dimensions > 256)
-		{
-			computeMortonCodeGroup(output, source_points, num_points);
-			return;
-		}
+		computeMortonCodeGroup(output, source_points, num_points);
+		return;
+		/*
 	//	output.fill((byte)0);
 		output.checkedFill((byte)0, m_dimensions* DirectMemory.INT_SIZE * num_points);
 		
@@ -58,15 +56,16 @@ public class MortonCode extends AbstractUtil {
 		m_morton_kernel.set_arg(3, (int)m_dimensions);
 		m_morton_kernel.set_arg(4, (int)num_points);
 		m_morton_kernel.invoke();
+		*/
 	}
 	
 	public void computeMortonCodeGroup(Buffer output, Buffer source_points, int num_points)
 	{
 	//	output.fill((byte)0);
 		output.checkedFill((byte)0, m_dimensions* DirectMemory.INT_SIZE * num_points);
-		
-		m_morton_kernel_group.set_global_size(0,  256*num_points  );
-		m_morton_kernel_group.set_local_size(0,  256  );
+		int wg_size = (int)Math.min(256,  nextPow2(m_dimensions));
+		m_morton_kernel_group.set_global_size(0,  wg_size*num_points  );
+		m_morton_kernel_group.set_local_size(0,  wg_size  );
 		
 	//	m_morton_kernel_group.set_local_size(1,  1  );
 	//	m_morton_kernel_group.set_global_size(1,  1  );
@@ -78,8 +77,20 @@ public class MortonCode extends AbstractUtil {
 		m_morton_kernel_group.set_arg(4, (int)num_points);
 		
 		m_morton_kernel_group.invoke();
+		
 	}
 	
+	
+	private long nextPow2(long v) {
+		v |= v >> 1;
+		v |= v >> 2;
+		v |= v >> 4;
+		v |= v >> 8;
+		v |= v >> 16;
+		v++;
+		return v;
+	}
+
 	public void computeMortonCodeCPU(Buffer output, Buffer source_points, int num_points)
 	{
 		if (true)

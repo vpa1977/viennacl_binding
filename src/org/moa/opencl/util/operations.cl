@@ -9,10 +9,9 @@ enum   AttributeType
 __kernel void double2uint(__global double* in, __global uint* attribute_map, __global  uint* out, const uint scale, const uint max, const uint attribute_size)
 {
   int id =get_global_id(0);
-
-  double value = in[id];
-  if (id < max)
+  for (; id < max ; id+= get_global_size(0))
   {
+	  double value = in[id];
 	  if (attribute_map[id % attribute_size ] == atNUMERIC)
 		  out[id] = (uint)(value* scale);
 	  else
@@ -39,22 +38,19 @@ __kernel void normalize_attributes(
 		const int attribute_size,
     const int num_instances)
 {
-  if (get_global_id(0) >= num_instances) 
-    return;
-	int vector_offset = attribute_size * get_global_id(0);
-	int i;
-	for (i = 0; i < attribute_size ; i ++ )
-	{
-		if (attribute_type[i] == atNUMERIC)
+	 for (int j = get_global_id(0); j < num_instances*attribute_size; j+= get_global_size(0))
+	 {
+		 int attribute = j % attribute_size;
+    	if (attribute_type[attribute] == atNUMERIC)
 		{
-			double width = ( range_max[i] - range_min[i]);
-			out[vector_offset+i] = width > 0 ? (in[vector_offset+i] - range_min[i]) / width : 0;
+			double width = ( range_max[attribute] - range_min[attribute]);
+			out[j] = width > 0 ? (in[j] - range_min[attribute]) / width : 0;
 		}
 		else
 		{
-			out[vector_offset+i] = in[vector_offset + i];
+			out[j] = in[j];
 		}
-	}
+	 }
 }
 
 __kernel void normalize_attributes_float(
@@ -66,9 +62,9 @@ __kernel void normalize_attributes_float(
 		const int attribute_size,
     const int num_instances)
 {
-  if (get_global_id(0) >= num_instances) 
-    return;
-	int vector_offset = attribute_size * get_global_id(0);
+  for (int j = get_global_id(0); j < num_instances; j+= get_global_size(0))
+  {
+	int vector_offset = attribute_size * j;
 	int i;
 	for (i = 0; i < attribute_size ; i ++ )
 	{
@@ -82,6 +78,7 @@ __kernel void normalize_attributes_float(
 			out[vector_offset+i] = in[vector_offset + i];
 		}
 	}
+  }
 }
 
 
@@ -89,7 +86,7 @@ __kernel void random_shift(__global uint* data, __global uint* shift, const int 
 {
 	int attrib_id = get_global_id(0);
 	int instance_id = get_global_id(1);
-  if (instance_id < max) 
+  for (;instance_id < max; instance_id+= get_global_size(1))
   {
     int instance_size = get_global_size(0);
     int offset = instance_id * instance_size + attrib_id;

@@ -62,8 +62,9 @@ public class ProjectedZOrderTransform {
 		search.search(sequence.code(), sequence.indices(), m_morton_code_buffer,
 				(int) (m_dst_dimensions * DirectMemory.INT_SIZE), m_rows, false);
 		int pos = search.getSearchPos();
-		int min = Math.max(0, pos - 2*K);
-		int max = Math.min(m_rows, pos +2*K);
+		
+		int min = Math.max(0, pos - m_rows/4);
+		int max = Math.min(m_rows, pos +m_rows/4);
 		int[] candidates = new int[max - min];
 		sequence.indices().mapBuffer(Buffer.READ, min * DirectMemory.INT_SIZE, (max - min) * DirectMemory.INT_SIZE);
 		sequence.indices().readArray(0, candidates);

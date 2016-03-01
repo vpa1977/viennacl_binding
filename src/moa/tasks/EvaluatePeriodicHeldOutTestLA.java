@@ -257,7 +257,7 @@ public class EvaluatePeriodicHeldOutTestLA extends MainTask {
                     instancesProcessed));
             measurements.add(new Measurement("test latency", final_period));            
             measurements.add(new Measurement("model build time", modelTime));          
-            
+            measurements.add(new Measurement("trainTime", (totalTrainTime/instancesProcessed)));
             Measurement[] performanceMeasurements = evaluator.getPerformanceMeasurements();
             for (Measurement measurement : performanceMeasurements) {
                 measurements.add(measurement);

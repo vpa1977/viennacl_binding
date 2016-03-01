@@ -17,14 +17,6 @@ JNIEXPORT void JNICALL Java_org_moa_opencl_sgd_Multinominal_computeDotProducts__
 
 /*
  * Class:     org_moa_opencl_sgd_Multinominal
- * Method:    computeReduction
- * Signature: (Lorg/viennacl/binding/Buffer;IILorg/viennacl/binding/Buffer;)V
- */
-JNIEXPORT void JNICALL Java_org_moa_opencl_sgd_Multinominal_computeReduction
-  (JNIEnv *, jobject, jobject, jint, jint, jobject);
-
-/*
- * Class:     org_moa_opencl_sgd_Multinominal
  * Method:    computeDotProducts
  * Signature: (Lorg/viennacl/binding/Buffer;IIILorg/viennacl/binding/Buffer;Lorg/viennacl/binding/Buffer;)V
  */

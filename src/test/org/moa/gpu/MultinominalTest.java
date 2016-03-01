@@ -8,6 +8,7 @@ import org.junit.Test;
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.SparseInstanceBuffer;
 import org.moa.opencl.sgd.Multinominal;
+import org.moa.opencl.util.BufHelper;
 import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
@@ -71,7 +72,7 @@ public class MultinominalTest {
 		Buffer bias = new Buffer(ctx, num_classes  * DirectMemory.DOUBLE_SIZE);
 		weights.fill((byte)2);
 		
-		logistic.computeGradient(dataset, instance_buffer, weights, bias);
+		logistic.computeGradient(dataset, instance_buffer, weights);
 		for (int k = 0; k < 1000; ++k)
 		{
 			/*long start = System.currentTimeMillis();
@@ -85,7 +86,7 @@ public class MultinominalTest {
 			*/
 			long start = System.currentTimeMillis();
 			for (int i = 0; i< 10; ++i)
-				logistic.computeGradient(dataset, dense_buffer, weights, bias);
+				logistic.computeGradient(dataset, dense_buffer, weights);
 			logistic.getComputedGradients().mapBuffer(Buffer.READ);
 			logistic.getComputedGradients().commitBuffer();
 			long end = System.currentTimeMillis();
@@ -97,18 +98,30 @@ public class MultinominalTest {
 	}
 	
 	@Test
+	public void crossValidate() 
+	{
+		
+	}
+	
+	@Test
 	public void testProduceProduct() {
 		int num_classes = 3;
 		int batch_rows = 3;
 		Instances dataset = prepareDataset(5);
 		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
-		Multinominal logistic = new Multinominal(ctx, num_classes, dataset.numAttributes(), 1);
+		Multinominal logistic = new Multinominal(ctx, num_classes, dataset.numAttributes(), 3);
 		SparseInstanceBuffer instance_buffer = new SparseInstanceBuffer(ctx, batch_rows, dataset.numAttributes(), 1);
+		DenseInstanceBuffer other = new DenseInstanceBuffer(ctx, batch_rows, dataset.numAttributes());
 		SparseInstance mainClone = makeMasterClone(dataset, 1);
 		instance_buffer.begin(Buffer.WRITE);
+		other.begin(Buffer.WRITE);
 		for (int i = 0;i < batch_rows; ++i)
+		{
 			instance_buffer.append(mainClone);
+			other.append(mainClone);
+		}
 		instance_buffer.commit();
+		other.commit();
 		
 		Buffer weights = new Buffer(ctx,num_classes * dataset.numAttributes()* DirectMemory.DOUBLE_SIZE);
 		weights.mapBuffer(Buffer.WRITE);
@@ -119,6 +132,7 @@ public class MultinominalTest {
 		weights.commitBuffer();
 		Buffer matrixResult = new Buffer(ctx, num_classes * batch_rows*DirectMemory.DOUBLE_SIZE);
 		
+		double[] before = BufHelper.rb(instance_buffer.getElements());
 		logistic.computeDotProducts
 		(instance_buffer.getColumnIndices(),
 		 instance_buffer.getRowJumper(),
@@ -130,9 +144,9 @@ public class MultinominalTest {
 		 instance_buffer.getRowPostion(), 
 		  num_classes, weights,
 		  matrixResult);
-
+		double[] after = BufHelper.rb(instance_buffer.getElements());
 		long start = System.currentTimeMillis();
-		for (int o = 0; o < 100 ; ++o)
+		/*for (int o = 0; o < 100 ; ++o)
 		logistic.computeDotProducts
 		(instance_buffer.getColumnIndices(),
 		 instance_buffer.getRowJumper(),
@@ -144,14 +158,14 @@ public class MultinominalTest {
 		 instance_buffer.getRowPostion(), 
 		  num_classes, weights,
 		  matrixResult);
-		
+		*/
 		double[] result = new double[num_classes * batch_rows];
 		matrixResult.mapBuffer(Buffer.READ);
 		matrixResult.readArray(0,  result);
 		matrixResult.commitBuffer();
 		long end = System.currentTimeMillis();
 		System.out.println("done in " + (end -start));
-		assertArrayEquals(new double[]{5, 2.5, 2, 5, 2.5, 2, 5, 2.5, 2} , result, 0.00001);
+		assertArrayEquals(new double[]{4.0, 2.0, 2.0, 4.0, 2.0, 2.0, 4.0, 2.0, 2.0} , result, 0.00001);
 		
 		Buffer bias = new Buffer(ctx, num_classes * DirectMemory.DOUBLE_SIZE );
 		double[] class_values = new double[]{0,1,2};
@@ -159,45 +173,38 @@ public class MultinominalTest {
 		clazz_values.mapBuffer(Buffer.WRITE);
 		clazz_values.writeArray(0, class_values);
 		clazz_values.commitBuffer();
-		logistic.computeMultinominalHinge(matrixResult, clazz_values, bias, num_classes, batch_rows);
+		logistic.computeMultinominalHinge(dataset.classIndex(), weights, matrixResult, clazz_values,  num_classes, batch_rows, dataset.numAttributes());
 		matrixResult.mapBuffer(Buffer.READ);
 		matrixResult.readArray(0,  result);
 		matrixResult.commitBuffer();
 		assertArrayEquals(new double[]{0, -1, -1, -1, 0, -1, -1, -1, 0} , result, 0.00001);
-		Buffer minibatch_gradients = new Buffer(ctx, num_classes*batch_rows * dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		logistic.computeReduceToMinibatch(minibatch_gradients, matrixResult, batch_rows, num_classes, 
-				1, dataset.numAttributes(), instance_buffer);
-		result = new double[num_classes*batch_rows * dataset.numAttributes()];
+		Buffer minibatch_gradients = new Buffer(ctx, num_classes* dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
+		before = BufHelper.rb(instance_buffer.getElements());
+		logistic.computeReduceToMinibatch(dataset.classIndex(),minibatch_gradients, matrixResult,num_classes, 
+				dataset.numAttributes(), instance_buffer);
+		after = BufHelper.rb(instance_buffer.getElements());
+		result = new double[num_classes* dataset.numAttributes()];
 		minibatch_gradients.mapBuffer(Buffer.READ);
 		minibatch_gradients.readArray(0,  result);
 		minibatch_gradients.commitBuffer();
+		
+		logistic.computeReduceToMinibatch(dataset.classIndex(), minibatch_gradients, matrixResult,  num_classes, 
+				 dataset.numAttributes(), other);
+		
+		double[] other_result = BufHelper.rb(minibatch_gradients);
+		assertArrayEquals(other_result, result, 0.00001);
 		double[] expected_updates = new double[]
-				{
-						 0,0,0,0,0,
-						-1,-1,-1,-1,-1, 
-						-1,-1,-1,-1,-1,
-						
-						-1,-1,-1,-1,-1,
-						 0,0,0,0,0,
-						 -1,-1,-1,-1,-1,
-						 
-						 -1,-1,-1,-1,-1,
-						 -1,-1,-1,-1,-1,
-						 0,0,0,0,0
+				{-0.6666666666666666, -0.6666666666666666, -0.6666666666666666, -0.6666666666666666, -0.6666666666666666, 
+					-0.6666666666666666, -0.6666666666666666, -0.6666666666666666, -0.6666666666666666, -0.6666666666666666, 
+					-0.6666666666666666, -0.6666666666666666, -0.6666666666666666, -0.6666666666666666, -0.6666666666666666
 				};
-		assertArrayEquals(expected_updates, result, 0.00001);
-		logistic.computeReduceToMinibatch(minibatch_gradients, matrixResult, batch_rows, num_classes, 
-				1, dataset.numAttributes(), instance_buffer);
-		minibatch_gradients.mapBuffer(Buffer.READ);
-		minibatch_gradients.readArray(0,  result);
-		minibatch_gradients.commitBuffer();
 		assertArrayEquals(expected_updates, result, 0.00001);
 		
 	}
 	
 	public static void main(String[] args)
 	{
-		new MultinominalTest().testLoad();
+		new MultinominalTest().testProduceProduct();
 	}
 
 }

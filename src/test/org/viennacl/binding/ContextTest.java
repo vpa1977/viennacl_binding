@@ -29,6 +29,7 @@ public class ContextTest {
 		String program = "__kernel void assignX(__global long* src, __global  long* dst) { src[0] = dst[0]; }";
 		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, "-cl-std=CL2.0 -D CL_VERSION_2_0");
 		ctx.add("simple_program", program);
+		ctx.add("simple_program", program);
 		Kernel newKernel = ctx.getKernel("simple_program", "assignX");
 		assertTrue(newKernel != null);
 		ctx.removeProgram("simple_program");

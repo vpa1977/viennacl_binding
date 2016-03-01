@@ -19,7 +19,7 @@ public class CLogsJavaTest {
 	@Test
 	public void testSortUINT() 
 	{
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
 		CLogsVarKeyJava sort = new CLogsVarKeyJava(ctx, false);
 		int size = 10000;
 		Buffer values = new Buffer(ctx, size * DirectMemory.INT_SIZE);
@@ -42,7 +42,7 @@ public class CLogsJavaTest {
 	
 	
 	public void testCreate() {
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
 		CLogsVarKeyJava sort = new CLogsVarKeyJava(ctx, true);
 		Operations ops = new Operations(ctx);
 		int size = 100;

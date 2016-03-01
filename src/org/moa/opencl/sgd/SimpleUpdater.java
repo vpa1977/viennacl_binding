@@ -35,15 +35,18 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 	private int m_num_batches;
 	private double m_learning_rate;
 	private int m_update = 0;
+	private int m_class_index;
 
 	public SimpleUpdater(
 			Context ctx, 
 			int num_attributes, 
 			int num_classes, 
+			int class_index, 
 			int num_batches)
 	{
 		m_context = ctx;
 		m_value_size = DirectMemory.DOUBLE_SIZE;
+		m_class_index = class_index;
 		double[] initial_tau = new double[num_attributes *num_classes];
 		for (int j = 0; j < initial_tau.length; ++j)
 			initial_tau[j] = 1;
@@ -52,8 +55,8 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 		m_es_avg = BufHelper.wb(m_context, initial_tau);
 		m_el_avg = BufHelper.wb(m_context, initial_tau);
 		
-		m_residual_buffer_small = new Buffer(ctx, num_attributes *num_classes* num_batches*m_value_size);
-		m_residual_buffer_large = new Buffer(ctx, num_attributes *num_classes* num_batches*m_value_size);
+		m_residual_buffer_small = new Buffer(ctx, num_attributes *num_classes* m_value_size);
+		m_residual_buffer_large = new Buffer(ctx, num_attributes *num_classes* m_value_size);
 		m_weights_delta = new Buffer(ctx, num_attributes*num_classes * DirectMemory.INT_SIZE);
 		m_weights = new Buffer(ctx, num_attributes*num_classes * m_value_size);
 		m_num_attributes = num_attributes;
@@ -83,7 +86,7 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 	}
 
 	/** 
-	 * SYnchronized to avoid corrupting kernel invokation
+	 * SYnchronized to avoid corrupting kernel invocation
 	 * @param gradient_buffer
 	 * @param batch_number
 	 */
@@ -159,10 +162,20 @@ public class SimpleUpdater extends AbstractUtil implements Updater {
 		//double[] res = BufHelper.rb(weights);
 		//System.out.println();
 	}
-
-	public Buffer getWeights() {
-		return m_weights;
+  
+	public double[] getWeights() {
+		return BufHelper.rb(m_weights);
 	}
+	
+	public double[] getBias() {
+		double [] w = getWeights();
+		double [] b = new double[m_num_classes];
+		for (int i = 0;i < m_num_classes; ++i)
+			b[i] = w[ m_num_attributes * i + m_class_index];
+		return b;
+
+	}
+
 
 	public void updateTau() {
 		m_update_tau.set_global_size(0, 40 * 128);

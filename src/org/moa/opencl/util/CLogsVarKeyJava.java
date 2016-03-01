@@ -412,6 +412,9 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 				m_histogram, 
 				blockSize,
 				size, firstBit);
+    
+     // if (m_context.memoryType() == Context.HSA_MEMORY)
+     //   m_context.finishDefaultQueue();
 
 			Buffer tmp = nextKeys;
 			nextKeys = curKeys;
@@ -422,7 +425,8 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			curValues = tmp;
 			
 		}
-    m_context.submitBarrier(true);
+    
+
 		if (curKeys != keys)
 		{
 			curKeys.copyTo(keys);

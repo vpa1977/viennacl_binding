@@ -112,7 +112,7 @@ public class SparseMatrixOpsTest {
 		return mainClone;
 	}
 	
-	@Test
+	/*
 	public void testColumnSum() 
 	{
 		SparseInstanceBuffer buffer = new SparseInstanceBuffer(context, 5, 5, 1);
@@ -138,10 +138,10 @@ public class SparseMatrixOpsTest {
 		result.readArray(0,r);;
 		result.commitBuffer();
 		assertArrayEquals(r,  new double[]{1,1,1,1,1}, 0.0001);
-	}
+	}*/
 	
 	
-	@Test 
+	
 	public void testBigColumnReduce()
 	{
 		SparseInstanceBuffer buffer = new SparseInstanceBuffer(context, 5, 3000, 1);
@@ -178,7 +178,7 @@ public class SparseMatrixOpsTest {
 	}
 	
 	
-	@Test
+	
 	public void testReductionSpeed()
 	{
 		Instances dataset = prepareDataset(32768);

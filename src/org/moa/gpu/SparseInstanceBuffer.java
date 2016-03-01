@@ -60,6 +60,9 @@ public class SparseInstanceBuffer extends SparseMatrix implements UnitOfWork {
     public boolean append(Instance iis) {
 		if (m_row == m_total_rows) 
 			return false;
+		m_class_buffer.write(m_row * m_value_size, iis.classValue());
+		iis.setClassValue(1); // create entry for the class column - it shou;ld be present in the sparse matrix.
+		
 		SparseInstanceAccess access = new SparseInstanceAccess(iis);
 		double[] values = access.values();
 		
@@ -67,8 +70,8 @@ public class SparseInstanceBuffer extends SparseMatrix implements UnitOfWork {
 		// attempt to compact - align data to the start of the buffer
 		// resize
 		if (indices.length + m_row_position > m_number_of_elements)
-			resize();
-		updateRowBlockBuffer(indices.length);	
+			resize(indices.length + m_row_position);
+		updateRowBlockBuffer(indices.length);
 		int column_position = m_row_position;
 		// write last row position to row jumper
 		m_row_jumper.writeInt(m_row*DirectMemory.INT_SIZE, column_position); // mark start of row
@@ -77,20 +80,34 @@ public class SparseInstanceBuffer extends SparseMatrix implements UnitOfWork {
 		{
 			float[] dup = new float[values.length];
 			for (int i = 0; i < values.length; ++i)
-				dup[i] = (float)values[i];
+				dup[i] = indices[i] == iis.classIndex() ? 0 : (float)values[i];
 			m_elements.writeArray(m_row_position, dup);
 		}
 		else
 		{
+			int idx = -1;
+			for (int i = 0; i < values.length; ++i)
+				if (indices[i] == iis.classIndex())
+				{
+					idx = i;
+					break;
+				};
 			m_elements.writeArray(m_row_position, values);
+			if (idx >= 0)
+			{
+				long offset = (m_row_position + idx)*m_value_size;
+				m_elements.write(offset, 0.0);
+			}
 		}
 		
 		
-		m_class_buffer.write(m_row * m_value_size, iis.classValue()); 
+		 
 	    m_weights.write(m_row * m_value_size, iis.weight());
 
 	    m_row ++;
 	    m_row_position += values.length;
+	    if (m_row == m_total_rows) 
+			return false;
 	    return true;
 	}
 

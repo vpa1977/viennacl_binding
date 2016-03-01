@@ -84,6 +84,8 @@ public class Context {
 	public native Queue createQueue();
 	public long getNativeContext() { return m_native_context; }
 	
+	public native Context createCompatibleContext(); 
+	
 	private long m_native_context;
 	Context.Memory m_mem_type;
 	private HashSet<String> m_programs = new HashSet<String>();

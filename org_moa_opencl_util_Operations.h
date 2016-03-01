@@ -7,6 +7,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef org_moa_opencl_util_Operations_WG_COUNT
+#define org_moa_opencl_util_Operations_WG_COUNT 40L
 /*
  * Class:     org_moa_opencl_util_Operations
  * Method:    dense_ax

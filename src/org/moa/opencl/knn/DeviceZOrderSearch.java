@@ -65,10 +65,10 @@ public class DeviceZOrderSearch extends Search{
 	private EuclideanDistance m_cpu_distance;
 	private NarySearch m_search;
 
-	public DeviceZOrderSearch()
+	public DeviceZOrderSearch(int num_curves)
 	{
 		m_dirty = true;
-		m_number_of_curves = 2;
+		m_number_of_curves = num_curves;
 	}
 	
 	public void init(Context ctx, Instances dataset)

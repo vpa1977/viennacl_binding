@@ -217,6 +217,8 @@ public class DenseInstanceBuffer implements UnitOfWork{
 			return false;
 		set(inst, m_current_row);
 		m_current_row++;
+		if (m_current_row == m_rows)
+			return false;
 		return true;
 	}
 	public void reset()

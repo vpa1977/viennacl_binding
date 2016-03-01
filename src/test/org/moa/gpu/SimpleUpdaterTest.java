@@ -23,7 +23,7 @@ public class SimpleUpdaterTest {
 		int num_attributes = 5;
 		int num_batches = 4;
 		SimpleUpdater updater = new SimpleUpdater(ctx, num_attributes,
-				num_classes, num_batches);
+				num_classes, num_batches,num_batches);
 
 		Buffer gradient_buffer = new Buffer(ctx, num_classes* num_attributes*mem_size); 
 		Buffer tau = new Buffer(ctx, num_classes* num_attributes*mem_size);
@@ -108,11 +108,7 @@ public class SimpleUpdaterTest {
 			assertEquals(0,delta_data[i]);
 		}
 		
-		Buffer weights = updater.getWeights();
-		double[] weight_data = new double[num_attributes * num_classes];
-		weights.mapBuffer(Buffer.READ);
-		weights.readArray(0, weight_data);
-		weights.commitBuffer();
+		double[] weight_data = updater.getWeights();
 		assertArrayEquals(new double[]{1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0},
 				weight_data, 0.00001);
 				
@@ -127,7 +123,7 @@ public class SimpleUpdaterTest {
 		int num_attributes = 5;
 		int num_batches = 2;
 		SimpleUpdater updater = new SimpleUpdater(ctx, num_attributes,
-				num_classes, num_batches);
+				num_classes, num_batches, num_batches);
 
 		Buffer gradient_buffer = new Buffer(ctx, num_classes* num_attributes*mem_size); 
 		Buffer tau = new Buffer(ctx, num_classes* num_attributes*mem_size);

@@ -40,4 +40,16 @@ public class BufHelper {
 		return ret;
 	}
 
+	public static void print(String string, Buffer m_dot_products, int numClasses) {
+		System.out.println(string);
+		double[] vals = rb(m_dot_products);
+		for (int i = 0; i < vals.length ; ++i)
+		{
+			if (i % numClasses == 0)
+				System.out.println();
+			System.out.print(vals[i] + " ");
+		} 
+		System.out.println();
+	}
+
 }

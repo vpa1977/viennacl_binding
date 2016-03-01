@@ -69,6 +69,7 @@ public class KNN extends AbstractClassifier  {
                 "LinearFloat",
             }, 0);
     		
+    public IntOption nCurvesOption = new IntOption( "nCurves", 't', "The number of curves", 10, 1, Integer.MAX_VALUE);
 	public IntOption kOption = new IntOption( "k", 'k', "The number of neighbors", 10, 1, Integer.MAX_VALUE);
     public IntOption slidingWindowSizeOption = new IntOption("slidingWindowSize", 'b', "Sliding Window Size", 32768, 2, Integer.MAX_VALUE);
     public MultiChoiceOption distanceWeightingOption = new MultiChoiceOption("distanceWeighting", 'w', "Distance Weighting", 
@@ -98,7 +99,7 @@ public class KNN extends AbstractClassifier  {
 		if (nearestNeighbourSearchOption.getChosenIndex() == 1)
 			m_search = new SimpleZOrderSearch();
 		if (nearestNeighbourSearchOption.getChosenIndex() == 2)
-			m_search = new DeviceZOrderSearch();
+			m_search = new DeviceZOrderSearch(nCurvesOption.getValue());
 		if (nearestNeighbourSearchOption.getChosenIndex() == 3)
 			m_search = new DoubleCosineSearch();
 		if (nearestNeighbourSearchOption.getChosenIndex() == 4)

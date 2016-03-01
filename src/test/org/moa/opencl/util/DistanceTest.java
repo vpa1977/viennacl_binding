@@ -7,6 +7,7 @@ import java.util.Random;
 
 import org.junit.Test;
 import org.moa.gpu.DenseInstanceBuffer;
+import org.moa.opencl.util.BufHelper;
 import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.MinMax;
 import org.viennacl.binding.Buffer;
@@ -26,9 +27,84 @@ public class DistanceTest {
 		System.loadLibrary("viennacl-java-binding");
 	}
 	
+	public static void main(String[] args)
+	{
+		new DistanceTest().distanceSpeed();
+	}
+	
+	@Test
+	public void distanceSpeed() 
+	{
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
+		Distance d = new Distance(ctx);
+		assertTrue(d != null);
+		for (int attributes = 1;attributes < 1024;++attributes)
+		{
+			ArrayList<Attribute> att = new ArrayList<Attribute>();
+			for (int i = 0; i< attributes; ++i)
+				att.add( new Attribute(""+i));
+			Instances instances = new Instances("aaa", att, 0);
+			instances.setClassIndex(0);
+			Random rnd = new Random();
+			int rows = 4096;
+			
+			Instance test_instance = new DenseInstance(attributes);
+			test_instance.setDataset(instances);
+			for (int k = 0; k < attributes; ++k)
+				test_instance.setValue(k, rnd.nextDouble());
+	
+			
+			
+			DenseInstanceBuffer dib = new DenseInstanceBuffer(ctx, rows, attributes);
+			dib.begin(Buffer.WRITE);
+			Instance next = new DenseInstance(attributes);
+			next.setDataset(instances);
+		
+			for (int k = 0; k < attributes; ++k)
+				next.setValue(k, rnd.nextDouble());
+			for (int i = 0; i < rows; ++i)
+			{
+			
+				instances.add(next);
+				dib.set(next,i);
+			}
+		//	dib.set(test_instance, rows);
+			dib.commit();
+			
+			DenseInstanceBuffer tib = new DenseInstanceBuffer(ctx, 1, attributes);
+			tib.begin(Buffer.WRITE);
+			instances.add(test_instance);
+			tib.set(test_instance, 0);
+			tib.commit();
+			
+			MinMax mm = new MinMax(ctx);
+			
+			Buffer min_buffer = new Buffer(ctx, DirectMemory.DOUBLE_SIZE * attributes * 2);
+			Buffer max_buffer = new Buffer(ctx, DirectMemory.DOUBLE_SIZE * attributes * 2);
+			Buffer result = new Buffer(ctx, DirectMemory.DOUBLE_SIZE * (rows+1));
+			Buffer types = new Buffer(ctx, DirectMemory.DOUBLE_SIZE * attributes);
+			int[] itypes = new int[attributes];
+			types.mapBuffer(Buffer.WRITE);
+			types.writeArray(0, itypes);
+			types.commitBuffer();
+			
+			mm.fullMinMaxDouble(instances, dib, min_buffer, max_buffer);
+			long testStart = System.nanoTime();
+			for (int k = 0; k < 10; ++k)
+			{
+				d.squareDistanceFloat(instances, tib, dib, min_buffer, max_buffer, types, result);
+				//double[] res = BufHelper.rb(result);
+			}
+			ctx.finishDefaultQueue();
+			long testEnd = System.nanoTime();
+			System.out.println(attributes + "\t"+(testEnd - testStart)/ (10 * 1000000.0));
+		}
+		
+	}
+	
 	@Test
 	public void testCreate() {
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
 		Distance d = new Distance(ctx);
 		assertTrue(d != null);
 		int attributes = 3;

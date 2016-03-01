@@ -22,7 +22,6 @@ public class DirectMemory {
 	public static void free(long handle)
 	{
 		m_direct_memory.freeMemory(handle);
-		
 	}
 	
 	public static void write(long handle, double value)
@@ -84,7 +83,10 @@ public class DirectMemory {
 	}
 
 
-
+	public static void writeRaw(long src, long dst, long size)
+	{
+		m_direct_memory.copyMemory(null, src, null, dst, size);
+	}
 	
 
 	public static void writeLong(long handle, long data) {

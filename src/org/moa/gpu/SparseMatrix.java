@@ -128,8 +128,8 @@ public class SparseMatrix {
 	    m_elements = new Buffer(context, byte_size, Buffer.READ_WRITE);
 	    m_column_data = new Buffer(context, number_of_elements* DirectMemory.INT_SIZE);
 	}
-	protected void resize() {
-		int new_size = (int)(m_number_of_elements * 1.5);
+	protected void resize(int sz) {
+		int new_size = (int)Math.max(m_number_of_elements * 1.5, sz);
 		Buffer old_elements = m_elements;
 		Buffer old_columns = m_column_data;
 		

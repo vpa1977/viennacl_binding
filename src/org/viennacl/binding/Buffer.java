@@ -1,7 +1,5 @@
 package org.viennacl.binding;
 
-import sun.misc.Unsafe;
-
 public class Buffer {
 	public static final int WRITE = 1;
 	public static final int READ = 2;
@@ -65,6 +63,7 @@ public class Buffer {
 			throw new RuntimeException("Buffer is being accessed");
 		if (m_context.memoryType() == Context.HSA_MEMORY)
 			m_context.finishDefaultQueue();
+	
 		map(mode);
 		m_mapped = true;
 	}
@@ -75,6 +74,7 @@ public class Buffer {
 			throw new RuntimeException("Buffer is being accessed");
 		if (offset + length > byteSize())
 			throw new RuntimeException("Buffer overrun");
+	
 		map(mode, offset, length);
 		m_mapped = true;
 	}

@@ -882,8 +882,10 @@ public class RpTree extends AbstractClassifier {
 			} else if (node.proj_type == 2) {
 				double distance = Math.abs(m_query_projections[node.proj_to_use] - m_projections[node.proj_to_use]);
 				double threshold_distance = Math.abs(node.threshold- node.mean[node.proj_to_use]);
+				
 				// a center split - distance between points exceeds radius.
-				if (distance >= threshold_distance) 
+				if ((distance >= threshold_distance) || 
+						(Math.abs(m_projections[node.proj_to_use]) + distance > Math.abs(node.threshold))) 
 					return true;
 			}
 			return false;

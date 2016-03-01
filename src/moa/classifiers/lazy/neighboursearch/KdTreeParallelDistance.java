@@ -37,7 +37,7 @@ class Target {
  */
 public class KdTreeParallelDistance extends KDTree {
 
-	private static final int OFFLOAD_THRESHOLD = 256;
+	private static final int OFFLOAD_THRESHOLD = 4096;
 
 	static {
 		System.loadLibrary("viennacl-java-binding");
@@ -253,10 +253,10 @@ public class KdTreeParallelDistance extends KDTree {
 	protected void findNearestNeighbours(Instance target, KDTreeNode node, int k, MyHeap heap, double distanceToParents)
 			throws Exception {
 		if (node.isALeaf()) {
-			if (node.m_End - node.m_Start < OFFLOAD_THRESHOLD) {
+			/*if (node.m_End - node.m_Start < OFFLOAD_THRESHOLD) {
 				super.findNearestNeighbours(target, node, k, heap, distanceToParents);
 				return;
-			}
+			}*/
 			findDistances(node.m_Start, node.m_End, target, 0);
 			
 			float[] check = BufHelper.rbf(m_distance_results);

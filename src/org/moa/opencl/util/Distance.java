@@ -16,6 +16,7 @@ public class Distance extends AbstractUtil {
 	private Kernel m_square_distance_kernel_float;
   
   private int WG_COUNT = 4;
+  private int WG_SIZE = 128;
   
 	public Distance(Context ctx)
 	{
@@ -56,8 +57,8 @@ public class Distance extends AbstractUtil {
 			Buffer indices
 			) {
 		
-		m_square_distance_kernel.set_global_size(0, 256*WG_COUNT);
-    m_square_distance_kernel.set_local_size(0, 256);
+		m_square_distance_kernel.set_global_size(0, WG_SIZE*WG_COUNT);
+    m_square_distance_kernel.set_local_size(0, WG_SIZE);
     m_square_distance_kernel.set_arg(0, size);
 		m_square_distance_kernel.set_arg(1, test_instance.attributes());
 		m_square_distance_kernel.set_arg(2, instance_buffer.attributes());
@@ -83,8 +84,8 @@ public class Distance extends AbstractUtil {
 			int size, 
 			Buffer indices
 			) {
-		m_square_distance_kernel_float.set_global_size(0, 256*WG_COUNT);
-    m_square_distance_kernel_float.set_local_size(0, 256);
+		m_square_distance_kernel_float.set_global_size(0, WG_SIZE*WG_COUNT);
+    m_square_distance_kernel_float.set_local_size(0, WG_SIZE);
     m_square_distance_kernel_float.set_arg(0, size);
     
 		m_square_distance_kernel_float.set_arg(1, test_instance.attributes());
@@ -120,8 +121,8 @@ public class Distance extends AbstractUtil {
 		float[] max =  BufHelper.rbf(max_buffer);
 		
 		int global_size = (int)size;
-		m_square_distance_kernel_float.set_global_size(0, 256*WG_COUNT);
-    m_square_distance_kernel_float.set_local_size(0, 256);
+		m_square_distance_kernel_float.set_global_size(0, WG_SIZE*WG_COUNT);
+    m_square_distance_kernel_float.set_local_size(0, WG_SIZE);
     m_square_distance_kernel_float.set_arg(0, size);
     
 		m_square_distance_kernel_float.set_arg(1, test_instance.attributes());
@@ -146,8 +147,8 @@ public class Distance extends AbstractUtil {
 			Buffer result 
 			) {
 		int global_size = (int)instance_buffer.rows();
-		m_square_distance_kernel_float.set_global_size(0, 256*WG_COUNT);
-    m_square_distance_kernel_float.set_local_size(0, 256);
+		m_square_distance_kernel_float.set_global_size(0, WG_SIZE*WG_COUNT);
+    m_square_distance_kernel_float.set_local_size(0, WG_SIZE);
     m_square_distance_kernel_float.set_arg(0, global_size);
     
 		m_square_distance_kernel_float.set_arg(1, test_instance.attributes());
@@ -172,8 +173,8 @@ public class Distance extends AbstractUtil {
 			Buffer result 
 			) {
 		int global_size = (int)instance_buffer.rows();
-		m_square_distance_kernel.set_global_size(0, 256*WG_COUNT);
-    m_square_distance_kernel.set_local_size(0, 256);
+		m_square_distance_kernel.set_global_size(0, WG_SIZE*WG_COUNT);
+    m_square_distance_kernel.set_local_size(0, WG_SIZE);
     m_square_distance_kernel.set_arg(0, global_size);
     
 		m_square_distance_kernel.set_arg(1, test_instance.attributes());

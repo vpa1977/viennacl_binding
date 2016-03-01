@@ -64,7 +64,7 @@ public class HogwildSchemeTest {
 		
 		Instance mainClone = makeMasterClone(dataset, 1);
 		HogwildScheme scheme = new HogwildScheme(ctx, dataset, 1024, 16);
-		scheme.populate(true);
+	
 		
 		
 		SGDMultiClass sgd = new ReferenceSGD();
@@ -72,25 +72,14 @@ public class HogwildSchemeTest {
 		
 		for (int i = 0; i < 600; ++i)
 		{
-			UnitOfWork work = scheme.take();
-			work.begin(Buffer.WRITE);
-			while (work.append(mainClone)) {}
-			work.commit();
-			scheme  .put(work);
+		
+			
 			System.out.println("commited "+ i);
 			sgd.trainOnInstance(mainClone);
 			double[] res = sgd.getVotesForInstance(mainClone);
 
 		}
-		Buffer weights = scheme.getWeights();
-		weights.mapBuffer(Buffer.READ);
-		double[] result = new double[790];
-		weights.readArray(0,  result);
-		weights.commitBuffer();
-		for (int i = 0; i< result.length; ++i)
-		{
-			assertEquals( result[i], 1.0/790.0, 0.00001);
-		}
+		
 		
 	}
 	
@@ -101,7 +90,7 @@ public class HogwildSchemeTest {
 		Instances dataset= prepareDataset(5);
 		Instance mainClone = makeMasterClone(dataset, 1);
 		HogwildScheme scheme = new HogwildScheme(ctx, dataset, 1, 1);
-		scheme.populate(true);
+		
 		
 		Instance makeError =(Instance) mainClone.copy();
 		for (int i = 0; i < makeError.numAttributes(); ++i)
@@ -118,25 +107,23 @@ public class HogwildSchemeTest {
 			makeError.setClassValue(0);
 			
 			Instance useInstance =i %2 == 0? mainClone : makeError; 
-			UnitOfWork work = scheme.take();
-			while (work.append(useInstance)) {}
-			work.commit();
-			
-			scheme  .put(work);
+		
+		
+		
 			scheme.updateWeightsAndTau();
 			System.out.println("commited ");
 			sgd.trainOnInstance(useInstance);
 			
 			
 			DoubleVector[] weights = sgd.getWeights();
-			double[] w_hg = BufHelper.rb(scheme.getWeights());
+
 			double[] tau = BufHelper.rb(scheme.getTau());
 			double[] small = BufHelper.rb(scheme.getErrorSmall());
 			double[] large = BufHelper.rb(scheme.getErrorLarge());
 		}
 		
 		DoubleVector[] weights = sgd.getWeights();
-		double[] w_hg = BufHelper.rb(scheme.getWeights());
+		
 		double[] tau = BufHelper.rb(scheme.getTau());
 		double[] small = BufHelper.rb(scheme.getErrorSmall());
 		double[] large = BufHelper.rb(scheme.getErrorLarge());

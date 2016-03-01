@@ -14,6 +14,7 @@ public class Kernel {
 	public native void invoke(Object... params);
 	public native void invoke();
 	
+	
 	public void finalize()
 	{
 		m_native_context = 0;

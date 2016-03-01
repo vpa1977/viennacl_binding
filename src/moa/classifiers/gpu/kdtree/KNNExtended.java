@@ -7,6 +7,7 @@ import org.viennacl.binding.DirectMemory;
 
 import moa.classifiers.lazy.kNN;
 import moa.classifiers.lazy.neighboursearch.KDTree;
+import moa.classifiers.lazy.neighboursearch.KDTreeFixed;
 import moa.classifiers.lazy.neighboursearch.KdTreeParallelDistance;
 import moa.classifiers.lazy.neighboursearch.LinearNNSearch;
 import moa.classifiers.lazy.neighboursearch.NearestNeighbourSearch;
@@ -76,7 +77,8 @@ public class KNNExtended extends kNN{
 						if (useGPUOption.isSet())
 							search = new KdTreeParallelDistance(m_context,m_buffer, m_indices);
 						else
-							search = new KDTree();
+							search = new KDTreeFixed();
+						System.out.println("Search class is " + search);
 					    search.setInstances(this.window);
 					}
 				}

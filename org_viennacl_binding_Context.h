@@ -77,6 +77,14 @@ JNIEXPORT void JNICALL Java_org_viennacl_binding_Context_removeProgram
 JNIEXPORT jobject JNICALL Java_org_viennacl_binding_Context_createQueue
   (JNIEnv *, jobject);
 
+/*
+ * Class:     org_viennacl_binding_Context
+ * Method:    createCompatibleContext
+ * Signature: ()Lorg/viennacl/binding/Context;
+ */
+JNIEXPORT jobject JNICALL Java_org_viennacl_binding_Context_createCompatibleContext
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

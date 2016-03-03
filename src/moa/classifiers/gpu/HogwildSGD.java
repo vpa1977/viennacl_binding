@@ -33,6 +33,8 @@ import moa.options.ClassOption;
 import moa.options.IntOption;
 import moa.options.MultiChoiceOption;
 import moa.tasks.TaskMonitor;
+import org.moa.opencl.sgd.DirectUpdater;
+import org.moa.opencl.sgd.OneBitUpdater;
 import test.org.moa.opencl.IBk;
 import weka.classifiers.rules.ZeroR;
 import weka.core.Instance;
@@ -151,11 +153,13 @@ public class HogwildSGD extends AbstractClassifier  {
     }
     
     public IntOption workerIndexOption = new IntOption( "workerIndex", 'i', "Worker Index", 0, 0, Integer.MAX_VALUE);
+    public IntOption workerCountOption = new IntOption( "workerCount", 'p', "Worker Count", 1, 1, Integer.MAX_VALUE);
+    public IntOption staggerOption = new IntOption( "stagger", 'o', "Stagger", 10, 1, Integer.MAX_VALUE);
     
     public MultiChoiceOption updaterOption = new MultiChoiceOption(
             "updater", 'n', "Updater to use", new String[]{
-                "SimpleUpdater"},
-            new String[]{"Simple Updater without regularization "
+                "DirectUpdater", "OneBitUpdater"},
+            new String[]{"Simple Updater without regularization ", "Simple Updater without regularization "
             }, 0);
     public MultiChoiceOption lossOption = new MultiChoiceOption(
             "loss", 'l', "Loss function", new String[]{
@@ -181,8 +185,8 @@ public class HogwildSGD extends AbstractClassifier  {
 		else if (contextUsedOption.getChosenIndex() == 2)
 			m_context = new Context(Context.Memory.HSA_MEMORY, null);
 		m_hogwild_scheme = null;
-		//m_reference_sgd = new ReferenceSGD();
-	//	m_reference_sgd.prepareForUseImpl(monitor, repository);
+		m_reference_sgd = new ReferenceSGD();
+		m_reference_sgd.prepareForUseImpl(monitor, repository);
 	}
 
 	@Override
@@ -197,8 +201,8 @@ public class HogwildSGD extends AbstractClassifier  {
             return null;
         }
         double [] votes1 = 	m_hogwild_scheme.getVotesForInstance(inst);;
-     //   double [] votes2 = m_reference_sgd.getVotesForInstance(inst);
-/*        for (int i = 0; i < votes1.length  ; ++i)
+     /*   double [] votes2 = m_reference_sgd.getVotesForInstance(inst);
+        for (int i = 0; i < votes1.length  ; ++i)
         	if (votes1[i] != votes2[i])
         	{
         		double[] weights_hogwild = m_hogwild_scheme.getWeights();
@@ -234,12 +238,23 @@ public class HogwildSGD extends AbstractClassifier  {
     private HogwildScheme backup;
     @Override
     public void trainOnInstanceImpl(Instance inst) {
-    //	m_reference_sgd.trainOnInstanceImpl((Instance)inst.copy());
+   // 	m_reference_sgd.trainOnInstanceImpl((Instance)inst.copy());
     //	m_reference_sgd.trainOnInstance(inst);
     	if (m_hogwild_scheme == null)
     	{
-    		m_hogwild_scheme = new HogwildScheme(m_context, inst.dataset(), this.workerIndexOption.getValue(),
-    				this.minbatchSizeOption.getValue());
+        Updater upd = null;
+        if (updaterOption.getChosenIndex() == 0)
+          upd = new DirectUpdater(m_context, inst.dataset().numAttributes(), inst.dataset().numClasses(), inst.dataset().classIndex(), workerIndexOption.getValue(), this.workerCountOption.getValue());
+        else
+          upd = new OneBitUpdater(m_context, 
+                  inst.dataset().numAttributes(), 
+                  inst.dataset().numClasses(), 
+                  inst.dataset().classIndex(), 
+                  workerCountOption.getValue(), 
+                  this.workerIndexOption.getValue(), 
+                   this.staggerOption.getValue());
+    		m_hogwild_scheme = new HogwildScheme(upd,m_context, inst.dataset(), this.workerIndexOption.getValue(),
+    				this.minbatchSizeOption.getValue(), this.workerCountOption.getValue(), this.staggerOption.getValue());
     		//backup = new HogwildScheme(m_context, inst.dataset(), this.workerIndexOption.getValue(),
     		//		this.minbatchSizeOption.getValue());
     		try {
@@ -270,17 +285,17 @@ public class HogwildSGD extends AbstractClassifier  {
     	}
     	
     	
-    ///	DoubleVector[] ref_vector = m_reference_sgd.getWeights();
-    //	double[] bias = m_reference_sgd.getBias();
-    //	double[] hog_bias = m_hogwild_scheme.getBias();
+  //  	DoubleVector[] ref_vector = m_reference_sgd.getWeights();
+  //  	double[] bias = m_reference_sgd.getBias();
+  //  	double[] hog_bias = m_hogwild_scheme.getBias();
     	
     	//double[] backup_bias = backup.getBias();
     	
-    	/*for (int i = 0;i < bias.length ; ++i)
-    		if (Math.abs(bias[i] - hog_bias[i]) > 0.0001)
-    			System.out.println("aa");*/
+//    	for (int i = 0;i < bias.length ; ++i)
+ //   		if (Math.abs(bias[i] - hog_bias[i]) > 0.0001)
+ //   			System.out.println("aa");
     //	double[] my_weights = m_hogwild_scheme.getWeights();
-    //	System.out.println();;
+  //  	System.out.println();;
     }
 
 	private void createUnitOfWork(Instance inst) {

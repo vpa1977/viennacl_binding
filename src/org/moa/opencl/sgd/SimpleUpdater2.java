@@ -14,7 +14,8 @@ import org.viennacl.binding.Kernel;
  * @author john
  *
  */
-public class SimpleUpdater2 extends AbstractUtil implements Updater {
+
+public class SimpleUpdater2 extends AbstractUtil  {
 
 	private Context m_context;
 	private long m_value_size;

@@ -1,16 +1,18 @@
 package org.moa.opencl.sgd;
 
 import java.io.File;
+import org.moa.opencl.util.AbstractUtil;
 
 import org.moa.opencl.util.BufHelper;
 import org.viennacl.binding.Buffer;
 import org.viennacl.binding.Context;
 import org.viennacl.binding.DirectMemory;
 import org.viennacl.binding.MappedFile;
+import sun.misc.VM;
 
 import weka.core.tokenizers.WordTokenizer;
 
-public class OneBitUpdater {
+public class OneBitUpdater extends AbstractUtil implements Updater{
 	private Context m_context;
 	private double m_learning_rate;
 	private double m_decay_rate;
@@ -76,6 +78,14 @@ public class OneBitUpdater {
 
 			m_tau_data = new MappedFile("tau.txt", m_num_classes * m_num_attributes * m_value_size );
 			m_semaphores = new SharedSemaphores("semaphores.txt", total_workers);
+      if (worker_id == 0)
+      {
+        for (int i = 0; i < total_workers; ++i)
+          m_semaphores.setValue(i, false);
+      }
+      for (int i = 0; i < total_workers; ++i)
+          System.out.println("Initial semaphore state " + m_semaphores.getValue(i) );
+      
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -85,10 +95,29 @@ public class OneBitUpdater {
 		m_step = 0;
 		m_total_steps = total_steps;
 		m_update =0;
-	}
-	
-	
+    
+ 		if (!ctx.hasProgram("1bitsgd_update") && ctx.memoryType() == Context.HSA_MEMORY) 
+		{
+			StringBuffer program = new StringBuffer();
+			program.append("#define VALUE_TYPE "+ type() + "\n");
+			program.append("#define COND_TYPE "+ cond_type() + "\n");
+			program.append(loadKernel("one_bit_updaters.cl"));
+			ctx.add("1bitsgd_update", program.toString());
+		}
 
+	}
+  
+  public String type() 
+  {
+    return "double";
+  }
+	
+  public String cond_type() 
+  {
+    return "long";
+  }
+
+  @Override
 	public synchronized  void applyUpdate(Buffer gradient_buffer, int batch_number)
 	{
 		if (true)
@@ -109,14 +138,14 @@ public class OneBitUpdater {
 			if (m_step >= m_total_steps)
 			{
 				m_step = 0;
-				setIdle();
+				m_semaphores.setValue(m_worker_id, true);
 				if (m_worker_id == 0) /** update tau */ 
 				{
 					waitIdle();
 					updateTau();
 					continueWork();
 				}
-				
+				waitWorkAllowance() ;
 			}
 			else
 			{
@@ -145,6 +174,7 @@ public class OneBitUpdater {
 			m_weights[class_index * m_num_attributes + att_index] *= (1 - (m_decay_rate* m_learning_rate)/(m_step++));
 	}
 	
+  @Override
 	public  void readWeights(Buffer weights)
 	{
 		waitWorkAllowance();
@@ -253,12 +283,14 @@ public class OneBitUpdater {
 	{
 	}
 	
+  @Override
 	public double[] getWeights()
 	{
 		return  m_weights;
 	}
 	
 
+  @Override
 	public double[] getBias() {
 		double [] b = new double[m_num_classes];
 		for (int i = 0;i < m_num_classes; ++i)

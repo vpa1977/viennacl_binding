@@ -108,7 +108,7 @@ public class MultinominalTest {
 		int num_classes = 3;
 		int batch_rows = 3;
 		Instances dataset = prepareDataset(5);
-		Context ctx = new Context(Context.Memory.OPENCL_MEMORY, null);
+		Context ctx = new Context(Context.Memory.HSA_MEMORY, null);
 		Multinominal logistic = new Multinominal(ctx, num_classes, dataset.numAttributes(), 3);
 		SparseInstanceBuffer instance_buffer = new SparseInstanceBuffer(ctx, batch_rows, dataset.numAttributes(), 1);
 		DenseInstanceBuffer other = new DenseInstanceBuffer(ctx, batch_rows, dataset.numAttributes());

@@ -22,7 +22,7 @@ import weka.core.Instances;
 
 public class HogwildScheme {
 	//private DirectUpdater m_updater;
-	private OneBitUpdater m_updater;
+	private Updater m_updater;
 	private Multinominal m_gradient;
 	private Buffer m_weights; // per minibatch weight copies;
 	private Buffer m_local_weights;
@@ -34,10 +34,10 @@ public class HogwildScheme {
 	private Buffer m_bias;
 
  
-	public HogwildScheme(Context ctx, Instances dataset, int self_id, int minibatch_size) {
-		//m_updater = new DirectUpdater(ctx, dataset.numAttributes(), dataset.numClasses(), dataset.classIndex());
+	public HogwildScheme(Updater upd, Context ctx, Instances dataset, int self_id, int minibatch_size, int number_of_workers, int one_bit_period) {
+	//	m_updater = new DirectUpdater(ctx, dataset.numAttributes(), dataset.numClasses(), dataset.classIndex(), self_id);
 		//m_updater = new SimpleUpdater(ctx, dataset.numAttributes(), dataset.numClasses(), dataset.classIndex(), 100);
-		m_updater = new OneBitUpdater(ctx, dataset.numAttributes(), dataset.numClasses(), dataset.classIndex(), 1, 0, 10);
+		m_updater = upd;//new OneBitUpdater(ctx, dataset.numAttributes(), dataset.numClasses(), dataset.classIndex(), number_of_workers, self_id, one_bit_period);
 		m_test_instance = new DenseInstanceBuffer(ctx, 1, dataset.numAttributes(), Buffer.READ);
 		m_test_instance.setClassReplaceValue(1);
 		m_gradient = new Multinominal(ctx, dataset.numClasses(), dataset.numAttributes(), minibatch_size);
@@ -82,10 +82,6 @@ public class HogwildScheme {
 	/**
 	 * update global model parameters
 	 */
-	public void updateWeightsAndTau() {
-		m_updater.applyWeightsDelta();
-		m_updater.updateTau();
-	}
 
 
 	public double[] getVotesForInstance(Instance inst) {

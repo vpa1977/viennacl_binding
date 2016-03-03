@@ -63,7 +63,7 @@ public class HogwildSchemeTest {
 		Instances dataset= prepareDataset(790);
 		
 		Instance mainClone = makeMasterClone(dataset, 1);
-		HogwildScheme scheme = new HogwildScheme(ctx, dataset, 1024, 16);
+		HogwildScheme scheme = null;// new HogwildScheme(ctx, dataset, 1024, 16,0,0,1,0);
 	
 		
 		
@@ -89,7 +89,7 @@ public class HogwildSchemeTest {
 		Context ctx = new Context(Context.DEFAULT_MEMORY, null);
 		Instances dataset= prepareDataset(5);
 		Instance mainClone = makeMasterClone(dataset, 1);
-		HogwildScheme scheme = new HogwildScheme(ctx, dataset, 1, 1);
+		HogwildScheme scheme = null;// new HogwildScheme(ctx, dataset, 1, 1);
 		
 		
 		Instance makeError =(Instance) mainClone.copy();
@@ -110,7 +110,6 @@ public class HogwildSchemeTest {
 		
 		
 		
-			scheme.updateWeightsAndTau();
 			System.out.println("commited ");
 			sgd.trainOnInstance(useInstance);
 			

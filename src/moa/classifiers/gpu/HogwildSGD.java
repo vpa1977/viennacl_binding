@@ -2,6 +2,7 @@ package moa.classifiers.gpu;
 
 
 
+import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -200,6 +201,7 @@ public class HogwildSGD extends AbstractClassifier  {
         if (inst == null) {
             return null;
         }
+      //  while (m_cache.size() > 0) {};
         double [] votes1 = 	m_hogwild_scheme.getVotesForInstance(inst);;
      /*   double [] votes2 = m_reference_sgd.getVotesForInstance(inst);
         for (int i = 0; i < votes1.length  ; ++i)
@@ -236,6 +238,8 @@ public class HogwildSGD extends AbstractClassifier  {
 	private UnitOfWork m_work;
 	private int m_step;
     private HogwildScheme backup;
+    private ArrayBlockingQueue<UnitOfWork> m_cache = new  ArrayBlockingQueue<UnitOfWork>(100);
+    private ArrayList<Instance> m_data = null;
     @Override
     public void trainOnInstanceImpl(Instance inst) {
    // 	m_reference_sgd.trainOnInstanceImpl((Instance)inst.copy());
@@ -257,6 +261,7 @@ public class HogwildSGD extends AbstractClassifier  {
     				this.minbatchSizeOption.getValue(), this.workerCountOption.getValue(), this.staggerOption.getValue());
     		//backup = new HogwildScheme(m_context, inst.dataset(), this.workerIndexOption.getValue(),
     		//		this.minbatchSizeOption.getValue());
+    		new Thread(new Processor()).start();
     		try {
     			//testSupport.buildClassifier(inst.dataset());
 				m_default_classifier.buildClassifier(inst.dataset());
@@ -266,6 +271,27 @@ public class HogwildSGD extends AbstractClassifier  {
 			}
     	}
     	
+    	int offset = m_step %  this.workerCountOption.getValue();
+    	m_step ++;
+    	if (offset != workerIndexOption.getValue())
+    		return;
+    	
+    	if (m_work == null)
+    		createUnitOfWork(inst);
+    	
+    	
+    	if (!m_work.append(inst))
+    	{
+    	//	try {
+                    m_work.commit();
+                    m_hogwild_scheme.trainStep(m_work);
+		//	} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+		//		e.printStackTrace();
+		//	}
+    		m_work = null;
+    	}
+    	
 	/*	m_work = new DenseInstanceBuffer(m_context, this.minbatchSizeOption.getValue(), inst.numAttributes());
 		m_work.begin(Buffer.WRITE);
 		m_work.append((Instance)inst.copy());
@@ -273,16 +299,6 @@ public class HogwildSGD extends AbstractClassifier  {
 		backup.trainStep(m_work, m_step);
 		m_work = null;
 */
-    	if (m_work == null)
-    	{
-    		createUnitOfWork(inst);
-    	}
-    	if (!m_work.append(inst))
-    	{
-    		m_work.commit();
-    		m_hogwild_scheme.trainStep(m_work, m_step++);
-    		createUnitOfWork(inst);
-    	}
     	
     	
   //  	DoubleVector[] ref_vector = m_reference_sgd.getWeights();
@@ -297,11 +313,33 @@ public class HogwildSGD extends AbstractClassifier  {
     //	double[] my_weights = m_hogwild_scheme.getWeights();
   //  	System.out.println();;
     }
+    
+    private class Processor implements Runnable 
+    {
+
+    	
+		@Override
+		public void run() {
+			while (true)
+			{
+				UnitOfWork work = null;;
+				try {
+					work = m_cache.take();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+	    		
+                                m_hogwild_scheme.trainStep(work);
+			}
+		}
+    	
+    }
 
 	private void createUnitOfWork(Instance inst) {
-		if (inst instanceof SparseInstance)
-			m_work = new SparseInstanceBuffer(m_context, this.minbatchSizeOption.getValue(), inst.numAttributes(), 0.5);
-		else
+//		if (inst instanceof SparseInstance)
+//			m_work = new SparseInstanceBuffer(m_context, this.minbatchSizeOption.getValue(), inst.numAttributes(), 0.5);
+//		else
 			m_work = new DenseInstanceBuffer(m_context, this.minbatchSizeOption.getValue(), inst.numAttributes());
 		m_work.begin(Buffer.WRITE);
 	}

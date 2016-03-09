@@ -120,8 +120,8 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 		int radix = 1 << m_parameters.radixBits;
 		int scatterSlice = Math.max(m_parameters.warpSizeSchedule,radix);
 		m_use_value = use_value;
-
-		if (!m_context.hasProgram("radixsortcl_hack"))
+		String program_name = "radixsortcl_hack" + use_value;
+		if (!m_context.hasProgram(program_name))
 		{
 	
 			
@@ -227,20 +227,20 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			
 			StringBuffer code = loadKernel("radixsort.cl");
 			program = defines.append(code).toString();
-			m_context.add("radixsortcl_hack", program);
+			m_context.add(program_name, program);
 	}
 		
 		m_histogram = new Buffer(m_context, m_parameters.scanBlocks * radix * DirectMemory.INT_SIZE);
 
-		m_reduce_kernel = m_context.getKernel("radixsortcl_hack", "radixsortReduce_with_raw");
+		m_reduce_kernel = m_context.getKernel(program_name, "radixsortReduce_with_raw");
 		
-		m_uint_reduce_kernel = m_context.getKernel("radixsortcl_hack", "radixsortReduce");
+		m_uint_reduce_kernel = m_context.getKernel(program_name, "radixsortReduce");
 		
-		m_scan_kernel = m_context.getKernel("radixsortcl_hack", "radixsortScan");
+		m_scan_kernel = m_context.getKernel(program_name, "radixsortScan");
 		m_scan_kernel.set_arg(0, m_histogram);
 		
-		m_scatter_kernel = m_context.getKernel("radixsortcl_hack",  "radixsortScatter_with_raw");
-		m_uint_scatter_kernel =  m_context.getKernel("radixsortcl_hack",  "radixsortScatter");
+		m_scatter_kernel = m_context.getKernel(program_name,  "radixsortScatter_with_raw");
+		m_uint_scatter_kernel =  m_context.getKernel(program_name,  "radixsortScatter");
 		m_scatter_kernel.set_arg(1, m_histogram);
 			
 	}
@@ -252,8 +252,8 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 		int radix = 1 << m_parameters.radixBits;
 		int scatterSlice = Math.max(m_parameters.warpSizeSchedule,radix);
 		m_use_value = use_value;
-
-		if (!m_context.hasProgram("radixsortcl"))
+		String program_name = "radixsortcl_" + use_value;
+		if (!m_context.hasProgram(program_name))
 		{
 	
 			
@@ -352,21 +352,21 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 			}
 			
 			StringBuffer code = loadKernel("radixsort.cl");
-      program = defines.append(code).toString();
-			m_context.add("radixsortcl", program);
+			program = defines.append(code).toString();
+			m_context.add(program_name, program);
 		}
 		
 		m_histogram = new Buffer(m_context, m_parameters.scanBlocks * radix * DirectMemory.INT_SIZE);
 
-		m_reduce_kernel = m_context.getKernel("radixsortcl", "radixsortReduce_with_raw");
+		m_reduce_kernel = m_context.getKernel(program_name, "radixsortReduce_with_raw");
 		
-		m_uint_reduce_kernel = m_context.getKernel("radixsortcl", "radixsortReduce");
+		m_uint_reduce_kernel = m_context.getKernel(program_name, "radixsortReduce");
 		
-		m_scan_kernel = m_context.getKernel("radixsortcl", "radixsortScan");
+		m_scan_kernel = m_context.getKernel(program_name, "radixsortScan");
 		m_scan_kernel.set_arg(0, m_histogram);
 		
-		m_scatter_kernel = m_context.getKernel("radixsortcl",  "radixsortScatter_with_raw");
-		m_uint_scatter_kernel =  m_context.getKernel("radixsortcl",  "radixsortScatter");
+		m_scatter_kernel = m_context.getKernel(program_name,  "radixsortScatter_with_raw");
+		m_uint_scatter_kernel =  m_context.getKernel(program_name,  "radixsortScatter");
 		m_scatter_kernel.set_arg(1, m_histogram);
     
   
@@ -494,6 +494,8 @@ public class CLogsVarKeyJava  extends AbstractUtil {
 				m_histogram, 
 				blockSize,
 				size, firstBit);
+
+			
 			
 		/*	int[] pre_sort = new int[size];
 			int[] post_sort = new int[size];

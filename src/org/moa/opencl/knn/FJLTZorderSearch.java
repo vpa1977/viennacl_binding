@@ -8,6 +8,8 @@ import java.util.Random;
 import org.moa.gpu.DenseInstanceBuffer;
 import org.moa.gpu.FJLT;
 import org.moa.gpu.SlidingWindow;
+import org.moa.opencl.util.BufHelper;
+import org.moa.opencl.util.CLogsVarKeyJava;
 import org.moa.opencl.util.Distance;
 import org.moa.opencl.util.DoubleMergeSort;
 import org.moa.opencl.util.MinMax;
@@ -53,23 +55,26 @@ public class FJLTZorderSearch extends Search{
 	private Buffer m_result_buffer;
 	private Buffer m_attribute_types;
 	private Distance m_distance;
-	private ProjectedZOrderTransform m_transform;
+	private ProjectedZOrderTransform[] m_transform;
 	private Buffer m_result_index_buffer;
 	private Buffer m_candidates_buffer;
 	private ArrayList<ZOrderSequence> m_z_orders;
-	private DoubleMergeSort m_sort;
+	private CLogsVarKeyJava m_sort;
 	private Operations m_ops;
 	private int m_number_of_curves;
 	private ArrayList<Buffer> m_random_shift_vectors;
 	private ArrayList<Buffer> m_z_order_sequences;
 	private EuclideanDistance m_cpu_distance;
 	private NarySearch m_search;
+	private int m_projected_dims;
+	private CLogsVarKeyJava m_curve_sort;
 	
 
-	public FJLTZorderSearch()
+	public FJLTZorderSearch(int num_curves, int num_dims)
 	{
 		m_dirty = true;
-		m_number_of_curves = 16;
+		m_number_of_curves =num_curves;
+		m_projected_dims = num_dims;
 	}
 	
 	public void init(Context ctx, Instances dataset)
@@ -78,16 +83,18 @@ public class FJLTZorderSearch extends Search{
 		m_dataset = dataset; 
 		m_context = ctx;
 		m_distance = new Distance(ctx);
-    
-    m_ops = new Operations(m_context);
+		
+		m_sort = new CLogsVarKeyJava(m_context, true);
+		m_curve_sort = new CLogsVarKeyJava(m_context, false);
+		m_ops = new Operations(m_context);
 		m_min_max = new MinMax(ctx);
-		m_search = new NarySearch(ctx,false);
+		m_search = new NarySearch(ctx,true); 
 	
-		m_min_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_max_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_test_instance =  new DenseInstanceBuffer(ctx, 1, m_dataset.numAttributes());
-		m_min_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
-		m_max_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.DOUBLE_SIZE);
+		m_min_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_max_values = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_test_instance =  new DenseInstanceBuffer(DenseInstanceBuffer.Kind.FLOAT_BUFFER, ctx, 1, m_dataset.numAttributes());
+		m_min_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
+		m_max_values_with_test_instance = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.FLOAT_SIZE);
 		
 		m_attribute_types = new Buffer(ctx, m_dataset.numAttributes() * DirectMemory.INT_SIZE);
 		m_attribute_types.mapBuffer(Buffer.WRITE);
@@ -97,11 +104,11 @@ public class FJLTZorderSearch extends Search{
 		m_random_shift_vectors = new ArrayList<Buffer>();
 		for (int i = 0; i < m_number_of_curves; ++i)
 		{
-			Buffer rnd_buffer = new Buffer(m_context, m_dataset.numAttributes()* DirectMemory.INT_SIZE);
-			int[] random_vector = new int[dataset.numAttributes()];
+			Buffer rnd_buffer = new Buffer(m_context, m_dataset.numAttributes()* DirectMemory.FLOAT_SIZE);
+			float[] random_vector = new float[dataset.numAttributes()];
 			for (int j = 0; j < random_vector.length ; ++j)
 			{
-				random_vector[j] = rnd.nextInt(10000);
+				random_vector[j] = rnd.nextFloat()/1000;
 			}
 			rnd_buffer.mapBuffer(Buffer.WRITE);
 			rnd_buffer.writeArray(0,  random_vector);
@@ -134,120 +141,79 @@ public class FJLTZorderSearch extends Search{
 		
 		if (m_result_buffer == null)
 		{
-      //System.out.println("reinit variables");
-			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.DOUBLE_SIZE);
+			//System.out.println("reinit variables");
+			m_min_max.fullMinMaxFloat(instance.dataset(), data, m_min_values, m_max_values);
+			m_result_buffer = new Buffer(m_context, data.rows() * DirectMemory.FLOAT_SIZE);
 			m_result_index_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
-			m_transform = new ProjectedZOrderTransform(m_context, instance.dataset().numAttributes(), data.rows(), 4);
-			m_sort = new DoubleMergeSort(m_context, data.rows());
-		
-     
+			m_transform = new ProjectedZOrderTransform[m_number_of_curves];
+			for (int i = 0; i < m_number_of_curves; ++i)
+				m_transform[i] = new ProjectedZOrderTransform(m_context, m_curve_sort,instance.dataset().numAttributes(), data.rows(), m_projected_dims);
 		}
-
+		
 		if (m_z_orders == null)
 		{
-			System.out.println("Building new z-order");
-			m_min_max.fullMinMaxDouble(m_dataset, data, m_min_values, m_max_values);
-			m_z_orders = new ArrayList<ZOrderSequence>();
-			m_transform.fillNormalizedData(instance.numAttributes(), data, m_min_values, m_max_values, m_attribute_types, true);
-     
 			for (int i = 0; i < m_number_of_curves; ++i)
 			{
-				
-				m_z_orders.add(m_transform.createDeviceRandomShiftZOrder(m_random_shift_vectors.get(i), 
-                m_attribute_types, true));
+				m_transform[i].fillNormalizedData(instance.dataset(), data);
+				m_transform[i].createDeviceRandomShiftZOrder(m_random_shift_vectors.get(i));
 			}
-      System.out.println("New z-order done");
 			m_dirty = false;
+			m_z_orders = new ArrayList<ZOrderSequence>();
+			m_context.finishDefaultQueue();
 		}
+		
+
+		
     //System.out.println("Evaluating");
-		m_min_values.copyTo(m_min_values_with_test_instance);
-		m_max_values.copyTo(m_max_values_with_test_instance);
+		
 		m_test_instance.begin(Buffer.WRITE);
 		m_test_instance.set(instance, 0);
 		m_test_instance.commit();
-		m_min_max.updateMinMaxDouble(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
+		
+		
+		m_min_values.copyTo(m_min_values_with_test_instance);
+		m_max_values.copyTo(m_max_values_with_test_instance);
+		m_min_max.updateMinMaxFloat(m_dataset, m_test_instance, m_min_values_with_test_instance, m_max_values_with_test_instance);
 		HashSet<Integer> possible_candidates = new HashSet<Integer>();
 		int index = 0;
 		int strange = 0;
-		for (ZOrderSequence list : m_z_orders)
+		
+		for (int curve = 0; curve < m_transform.length ; ++curve)
+			m_transform[curve].enqueueSearch(  
+					m_random_shift_vectors.get(index++), 
+					m_test_instance.attributes());
+		
+		for (int curve = 0; curve < m_transform.length ; ++curve)
 		{
       //System.out.println("Next item");
   
-			int [] candidates = m_transform.canidatesForInstance(m_search, list, 
-					m_random_shift_vectors.get(index++), 
-					m_test_instance.attributes(), m_min_values, m_max_values, m_attribute_types,  
-					K);
+			int [] candidates = m_transform[curve].canidatesForInstance(K);
 			if (candidates.length < K)
 				System.out.println("error");
 			
-		/*System.out.println("----------------> " );
-			for (int i = 0 ;i < list.length ; ++i)
-			{
-				System.out.println(i+ " == "+ list[i]);
-			}
-			System.out.println("<----------------> " );*/ 
-//			if (position == list.length || position == 0)
-//				continue;
-		/*	System.out.println("Looking for " + instance);
-			data.begin(Buffer.READ);
-			for (int idx : candidates)
-			{
-				Instance my_instance = data.read(idx, m_dataset);
-				System.out.print(my_instance.toString() + " ");
-			}
-			data.commit();
-			*/
+	
 			
 			for (int next: candidates)
 				possible_candidates.add(next);
  
 		}
+		
+
     //System.out.println("Flush candidates");
 		int[] cnd_items = new int[possible_candidates.size()];
 		index = 0;
 		for (Integer i : possible_candidates)
 			cnd_items[index++] = i;
-/*    System.out.print("Candidate ");
-    for (int i : cnd_items)
-    {
-      System.out.print(i+ " ");
-    }
-    System.out.println();*/
+		
+
 		if (m_candidates_buffer == null) 
 			m_candidates_buffer = new Buffer(m_context, data.rows() * DirectMemory.INT_SIZE);
 		
 		m_candidates_buffer.mapBuffer(Buffer.WRITE);
 		m_candidates_buffer.writeArray(0, cnd_items);
 		m_candidates_buffer.commitBuffer();
-		
-    
-    
-/*		double[] test_instance = new double[ m_dataset.numAttributes()];
-		m_test_instance.attributes().mapBuffer(Buffer.READ);
-		m_test_instance.attributes().readArray(0,test_instance );
-		m_test_instance.attributes().commitBuffer();
-		
-		double[] values = new double[(int)(data.attributes().byteSize() / DirectMemory.DOUBLE_SIZE)];
-		data.attributes().mapBuffer(Buffer.READ);
-		data.attributes().readArray(0, values);
-		data.attributes().commitBuffer();
-		
-		double[] min = new double[(int)(m_min_values_with_test_instance.byteSize()/DirectMemory.DOUBLE_SIZE)];
-		m_min_values_with_test_instance.mapBuffer(Buffer.READ);
-		m_min_values_with_test_instance.readArray(0, min);
-		m_min_values_with_test_instance.commitBuffer();
-
-		
-		double[] max = new double[(int)(m_max_values_with_test_instance.byteSize()/DirectMemory.DOUBLE_SIZE)];
-		m_max_values_with_test_instance.mapBuffer(Buffer.READ);
-		m_max_values_with_test_instance.readArray(0, max);
-		m_max_values_with_test_instance.commitBuffer();
-*/        
-    //System.out.println("Do short list");
-    
-    
 		int sort_size = cnd_items.length;
-		m_distance.squareDistance(
+		m_distance.squareDistanceFloat(
 				m_dataset, 
 				m_test_instance, 
 				data, 
@@ -257,46 +223,50 @@ public class FJLTZorderSearch extends Search{
 				m_result_buffer, 
 				cnd_items.length, 
 				m_candidates_buffer);
-		
+    	
 		m_ops.prepareOrderKey(m_result_index_buffer, sort_size);
-		m_sort.sort(m_result_buffer, m_result_index_buffer, sort_size);
+		m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer, sort_size);
 		int[] nearest_k = new int[K];
 		m_result_index_buffer.mapBuffer(Buffer.READ, 0, K * DirectMemory.INT_SIZE);
 		m_result_index_buffer.readArray(0, nearest_k);
 		m_result_index_buffer.commitBuffer();
-		
-		/*System.out.println("final selection " + instance);
-		data.begin(Buffer.READ);
-		for (int i = 0; i < nearest_k.length ; ++i)
-		{
-			Instance my_instance = data.read(cnd_items[nearest_k[i]], m_dataset);
-			System.out.println(my_instance.toString() + " ");
-		}
-		data.commit();*/
+		//float[] found_dist = BufHelper.rbf(m_result_buffer)
 		
 		
-		if (m_compute_approximation_error)
+		if (false)
 		{
       //System.out.println("Compute error");
 			m_result_buffer.mapBuffer(Buffer.READ);
-			double kth_approx = m_result_buffer.read(K * DirectMemory.DOUBLE_SIZE);
+			double kth_approx = m_result_buffer.read(1 * DirectMemory.FLOAT_SIZE);
 			m_result_buffer.commitBuffer();
 			
-			m_distance.squareDistance(m_dataset, 
+			m_distance.squareDistanceFloat(m_dataset, 
 					m_test_instance, 
 					data, 
 					m_min_values_with_test_instance, 
 					m_max_values_with_test_instance, 
 					m_attribute_types, 
 					m_result_buffer);
+			
 			m_ops.prepareOrderKey(m_result_index_buffer, data.rows());
-			m_sort.sort(m_result_buffer, m_result_index_buffer, data.rows());
+			m_sort.sortFixedBuffer(m_result_buffer, m_result_index_buffer, data.rows());
 			double kth_true;
 			m_result_buffer.mapBuffer(Buffer.READ);
-			kth_true = m_result_buffer.read(K * DirectMemory.DOUBLE_SIZE);
+			kth_true = m_result_buffer.read(1 * DirectMemory.FLOAT_SIZE);
 			
 			m_result_buffer.commitBuffer();
+			
 			double eps = kth_approx/kth_true;
+			if (eps > 1000)
+			{
+				float[] atrrs = BufHelper.rbf(m_test_instance.attributes());
+				float[] distances = BufHelper.rbf(m_result_buffer);
+				float[] mins = BufHelper.rbf(m_min_values_with_test_instance);
+				float[] maxs = BufHelper.rbf(m_max_values_with_test_instance);
+				System.out.println();;
+			}
+			
+			
 			ratio += eps;
 			total_instances++;
 			System.out.println("Current eps = " + eps + " avg "+ ratio/total_instances);
@@ -310,8 +280,16 @@ public class FJLTZorderSearch extends Search{
     
 	}
 	
+	public void resetRelativeError()
+	{
+		ratio = 0;
+		total_instances = 0;
+	}
 	
-	
+	public double getRelativeError() 
+	{
+		return 1;//ratio/total_instances;
+	}
 	
 
 	@Override

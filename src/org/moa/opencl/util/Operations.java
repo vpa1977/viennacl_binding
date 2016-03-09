@@ -12,6 +12,7 @@ public class Operations extends AbstractUtil {
 	private Context m_context;
 	private Kernel m_normalize_kernel;
   private Kernel m_normalize_kernel_float;
+  private Kernel m_normalize_kernel_float_replace_min;
 	private Kernel m_double2uint_kernel;
 	private Kernel m_prepare_order_key;
 	private Kernel m_random_shift_kernel;
@@ -23,7 +24,8 @@ public class Operations extends AbstractUtil {
 		{
 			if (!m_context.hasProgram("operations"))
 				init(m_context);
-      m_normalize_kernel_float = m_context.getKernel("operations", "normalize_attributes_float");
+			m_normalize_kernel_float_replace_min = m_context.getKernel("operations", "normalize_attributes_float_replace_min");
+			m_normalize_kernel_float = m_context.getKernel("operations", "normalize_attributes_float");
 			m_normalize_kernel = m_context.getKernel("operations", "normalize_attributes");
 			m_double2uint_kernel = m_context.getKernel("operations", "double2uint");
 			m_prepare_order_key = m_context.getKernel("operations", "prepare_order_key");
@@ -88,6 +90,24 @@ public class Operations extends AbstractUtil {
 		m_normalize_kernel_float.invoke();
 
 	}
+  
+  
+  public void normalizeFloatReplaceMin(Buffer input, Buffer output, Buffer min_values, Buffer max_values, Buffer attribute_map,
+			int num_attributes, int num_instances) {
+	  int size = num_instances;
+		m_normalize_kernel_float_replace_min.set_global_size(0, 256 * WG_COUNT);
+		m_normalize_kernel_float_replace_min.set_local_size(0, 256);
+		m_normalize_kernel_float_replace_min.set_arg(0, input);
+		m_normalize_kernel_float_replace_min.set_arg(1, output);
+		m_normalize_kernel_float_replace_min.set_arg(2, min_values);
+		m_normalize_kernel_float_replace_min.set_arg(3, max_values);
+		m_normalize_kernel_float_replace_min.set_arg(4, attribute_map);
+		m_normalize_kernel_float_replace_min.set_arg(5, num_attributes);
+		m_normalize_kernel_float_replace_min.set_arg(6, num_instances);
+		m_normalize_kernel_float_replace_min.invoke();
+
+	}
+
 
 	private void init(Context ctx) {
 		StringBuffer code = loadKernel("operations.cl");

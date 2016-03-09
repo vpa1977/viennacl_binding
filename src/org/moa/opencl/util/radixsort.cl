@@ -1,3 +1,4 @@
+#pragma OPENCL EXTENSION cl_amd_printf : enable
 /* Copyright (c) 2012 University of Cape Town
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -242,6 +243,8 @@
 #define KERNEL(size) __kernel __attribute__((reqd_work_group_size(size, 1, 1)))
 
 
+#define RAW_OFFSET(x) (key * raw_key_size + raw_key_size -1 - x)
+
 /**
  * Extract keys and compute histograms for a range.
  * For each of @a len keys, extracts the @ref RADIX_BITS bits starting from
@@ -364,8 +367,8 @@ void radixsortReduce_with_raw(__global uint *out, __global const KEY_T *keys,
 	/* Accumulate all chunks into the histogram */
 	for (uint i = base + lid; i < end; i += REDUCE_WORK_GROUP_SIZE)
 	{
-		const KEY_T key = VALUE_TRANSFORM(keys[i]);
-				const uint bucket = (raw_data[key * raw_key_size + byte_offset] >> real_shift) & (RADIX - 1);
+		const KEY_T key = keys[i];
+		const uint bucket = (raw_data[RAW_OFFSET(byte_offset)] >> real_shift) & (RADIX - 1);
 				//const uint bucket  = (key >> firstBit)& (RADIX - 1);
 		hist[bucket][lid]++;
 	}
@@ -1085,13 +1088,15 @@ inline uint radixsortScatterTile_with_raw(
 		uint byte_offset = firstBit >> 3;
 		uint real_shift = firstBit - (byte_offset << 3);
 
+
 	/* Load keys and decode digits */
 	for (uint i = 0; i < SCATTER_WORK_SCALE; i++)
 	{
 		const uint kidx = lid + i * SCATTER_SLICE;
 		const uint addr = start + kidx;
 		const KEY_T key = (addr < end) ? inKeys[addr] : ~(KEY_T) 0;
-		const uint digit = (addr < end) ? (raw_data[key * raw_key_size + byte_offset] >> real_shift) & (RADIX - 1) : (0xFF & (RADIX - 1));
+		const uint digit = (addr < end) ? (raw_data[RAW_OFFSET(byte_offset)] >> real_shift) & (RADIX - 1) : ( (key>>real_shift) & (RADIX - 1));
+		//printf("addr key %d bit %d digit %d\n", key, firstBit, digit);
 				//const uint digit = (key >> firstBit) & (RADIX - 1);
 		wg->keys[kidx] = key;
 		wg->digits[kidx] = digit;

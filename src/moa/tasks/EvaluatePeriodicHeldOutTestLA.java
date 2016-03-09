@@ -163,9 +163,13 @@ public class EvaluatePeriodicHeldOutTestLA extends MainTask {
             monitor.setCurrentActivityDescription("Training...");
             long instancesTarget = instancesProcessed
                     + this.sampleFrequencyOption.getValue();
-            long trainStartTime = TimingUtils.getNanoCPUTimeOfCurrentThread();
+            long fixup =0;
+            long trainStartTime = System.nanoTime();
             while (instancesProcessed < instancesTarget && stream.hasMoreInstances() == true) {
-                learner.trainOnInstance(stream.nextInstance());
+            	long start = System.nanoTime();
+            	Instance i = stream.nextInstance();
+            	fixup += System.nanoTime() - start;
+                learner.trainOnInstance(i);
                 instancesProcessed++;
                 if (instancesProcessed % INSTANCES_BETWEEN_MONITOR_UPDATES == 0) {
                     if (monitor.taskShouldAbort()) {
@@ -175,7 +179,7 @@ public class EvaluatePeriodicHeldOutTestLA extends MainTask {
                             / (double) (this.trainSizeOption.getValue()));
                 }
             }
-            double lastTrainTime = TimingUtils.nanoTimeToSeconds(TimingUtils.getNanoCPUTimeOfCurrentThread()
+            double lastTrainTime = TimingUtils.nanoTimeToSeconds(System.nanoTime()
                     - trainStartTime);
             totalTrainTime += lastTrainTime;
             if (totalTrainTime > this.trainTimeOption.getValue()) {
@@ -212,14 +216,15 @@ public class EvaluatePeriodicHeldOutTestLA extends MainTask {
                 double trueClass = testInst.classValue();
                 testInst.setClassMissing();
                 
-                double[] prediction = null;
-                
+                double[] prediction = learner.getVotesForInstance(testInst);
+               
                 do // tune to get more or less stable data
                 {
 	                long start = System.nanoTime();
 	                for (int i = 0; i < numberOfCheckCalls ; ++i)
 	                	prediction = learner.getVotesForInstance(testInst);
 	                long end = System.nanoTime();
+	                
 	                if ((end - start)/1000000.0 < 30) 
 	                {
 	                	numberOfCheckCalls += 10;

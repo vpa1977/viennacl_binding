@@ -120,8 +120,8 @@ public class ZOrderTransform {
 				m_rows, false);
 		int pos = search.getSearchPos();
 		System.out.println("found " + pos);
-		int min = Math.max(0, pos + K);
-		int max = Math.min(m_rows, pos -K);
+		int min = Math.max(0, pos - K);
+		int max = Math.min(m_rows, pos  +K);
 		int[] candidates = new int[max - min];
 		sequence.indices().mapBuffer(Buffer.READ, min*DirectMemory.INT_SIZE, (max - min)*DirectMemory.INT_SIZE);
 		sequence.indices().readArray(0, candidates);

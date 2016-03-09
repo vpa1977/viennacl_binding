@@ -1,3 +1,5 @@
+#define RAW_OFFSET(x) ( code_length - x)
+
 // global_size(1) == 3
 __kernel void morton_code_backup(__global uchar* result,
 													__global uchar* lookup_table,
@@ -7,18 +9,18 @@ __kernel void morton_code_backup(__global uchar* result,
 {
 		const uint BYTE_COUNT = 256;
 		const uint rightshift = 32;
+		const uint code_length = dimensions * 4 -1;
 		const int total_len = dimensions * 32 / 8;
-		uint size_one = get_global_size(1);
-		uint i_depth = get_global_id(1) +1;
+
 	  for (uint id = get_global_id(0); id < N ; id+= get_global_size(0))
 		{
 			uint input_offset =  id * dimensions;
 			uint output_offset = id *total_len;
 
-			//for (uint i_depth = 1; i_depth <= 4; ++i_depth)
+			for (uint i_depth = 1; i_depth <= 4; ++i_depth)
 			{
 					int result_offset = 3 * dimensions - (i_depth - 1)*dimensions; // each mask has [dimensions] bytes in it
-					for (int pos = result_offset; pos < result_offset + dimensions; ++pos)
+					for (int pos = result_offset + dimensions-1;  pos >= result_offset ; --pos)
 					{
 						for (unsigned int d = 0; d < dimensions; ++d)
 						{
@@ -26,7 +28,7 @@ __kernel void morton_code_backup(__global uchar* result,
 							uint shifted_value =  point_value >> (rightshift - 8 * i_depth);
 							uint byte = shifted_value & 0xFF;
 							uint offset = d* dimensions * BYTE_COUNT + byte * dimensions + pos - result_offset;
-							result[output_offset + pos] |= lookup_table[offset];
+							result[output_offset + RAW_OFFSET(pos)] |= lookup_table[offset];
 						}
 					}
 				}
@@ -35,173 +37,116 @@ __kernel void morton_code_backup(__global uchar* result,
 }
 
 
-
-// global_size(1) == 3
-__kernel void morton_code(__global uchar* result,
-													__global uchar* lookup_table,
+__kernel void morton_code_group_backup(__global uchar* result,
+													__global const uchar* lookup_table,
 													__global uint* points,
-													const uint dimensions,
+													const uint dims,
 													const uint N)
 {
 		const uint BYTE_COUNT = 256;
 		const uint rightshift = 32;
-		const int total_len = dimensions * 32 / 8;
-
-		const int long_steps = total_len / 8;
-	    for (uint id = get_global_id(0); id < N ; id+= get_global_size(0))
+		int id = get_global_id(0);
+		int input_offset =  id /(dims*  4);
+		input_offset *= dims;
+		int pos = id % (dims *4);
+		int i_depth = 1  + pos/dims;
+		int code_pos = pos % dims; // current offset in dims code.
+		for (int d = 0; d < dims; ++d)
 		{
-			uint input_offset =  id * dimensions;
-			uint output_offset = id *total_len;
-			//int i_depth = get_global_id(1)+1;
-			for (int i_depth = 1; i_depth <= 4; ++i_depth)
-			{
-				int result_offset = output_offset + 3 * dimensions - (i_depth - 1)*dimensions; // each mask has [dimensions] bytes in it
-				int depth = (rightshift - 8 * i_depth);
-				for (unsigned int d = 0; d < dimensions; ++d)
-				{
-					uint point_value = points[input_offset + d];
-					uint byte =  (point_value >> depth) & 0xFF;
-					uint offset = d* dimensions * BYTE_COUNT + byte * dimensions;
-					uint byte_pos = long_steps * 8;
-					__global long* result_as_long = (__global long*)&result[result_offset];
-					__global long* lookup_as_long = (__global long*)&lookup_table[offset ];
-					for (int pos =0 ; pos < long_steps; ++pos)
-					{
-						result_as_long[pos] |= lookup_as_long[pos];
-					}
-					for (int pos =byte_pos ; pos < dimensions; ++pos)
-					{
-						result[result_offset + pos] |= lookup_table[offset+ pos ];
-					}
-				}
-			}
-
+			int b = (points[input_offset+d] >> (rightshift - 8 * i_depth)) & 0xFF;
+			int offset = d* dims * BYTE_COUNT + b * dims + dims-1 - code_pos;
+			result[id] |= lookup_table[offset];
 		}
+
+}
+
+// 1 thread - 1 int
+__kernel void morton_code_group(__global uint* result,
+													__global const uchar* lookup_table,
+													__global uint* points,
+													const uint dims,
+													const uint N)
+{
+
+		const uint BYTE_COUNT = 256;
+		const uint rightshift = 32;
+		int update_count = dims / 8;
+		int id = get_global_id(0)*4;
+		int input_offset =  get_global_id(0) /dims;
+		input_offset *= dims;
+
+		//int top_dim = select( dims , dims - 8*(id % update_count) , update_count !=0 );
+		//int low_dim = select(0 , top_dim -8, update_count !=0 );
+		//top_dim = select( dims , dims - 8*((id+4) % update_count) , update_count !=0 );
+
+		//int start = min(top_dim, low_dim);
+		//int end = max(top_dim, low_dim);
+
+		uint sum = 0;
+		for (int d = 0; d < dims; ++d)
+		{
+			uint point = points[input_offset + d];
+			int slot = d* dims * BYTE_COUNT;
+			for (int cache_pos =0; cache_pos < 4; ++cache_pos)
+			{
+				int pos = (id + cache_pos) % (dims *4);
+				int i_depth = 1  + pos/dims;
+				int code_pos = pos % dims; // current offset in dims code.
+				int b = (point >> (rightshift - 8 * i_depth)) & 0xFF;
+				int offset = slot + (b +1)* dims -1 - code_pos;
+				sum |=  lookup_table[offset] << (cache_pos *8);
+			}
+		}
+		result[get_global_id(0)] = sum;
 }
 
 
-__kernel void morton_code_group(__global uchar* result,
-													const __global uchar* lookup_table,
-													__global const uint* points,
-													const uint dimensions,
+
+__kernel void morton_code_group_new(__global uint* result,
+													__global const uchar* lookup_table,
+													__global uint* points,
+													const uint dims,
 													const uint N)
 {
-		const uint BYTE_COUNT = 256;
-		const uint rightshift = 32;
-		const int total_len = dimensions * 32 / 8;
-		const int long_steps = dimensions/8;
-		const uint byte_pos = long_steps * 8;
-		__global long* result_as_long = (__global long*)&result[0];
-		__global long* lookup_as_long = (__global long*)&lookup_table[0];
+	volatile __local uint local_result[1024];
+	__local uint point_cache[1024];
+	int input_offset =  get_group_id(0)*dims;
+	for (int i = get_local_id(0); i < dims; i+= get_local_size(0))
+	{
+		point_cache[i] = points[input_offset + i];
+		local_result[i] = 0;
+	}
+	barrier(CLK_LOCAL_MEM_FENCE);
+	const uint BYTE_COUNT = 256;
+	const uint rightshift = 32;
+	int update_count = dims / 8;
+	for (int gid = get_local_id(0); gid < dims; gid += get_local_size(0)) // each output int - separate thread
+	{
+		int id = gid * 4; // overall byte position
+		int top_dim = select( dims , dims - 8*(id % update_count) , update_count !=0 );
+		int low_dim = select(0 , top_dim -8, update_count !=0 );
+		top_dim = select( dims , dims - 8*((id+4) % update_count) , update_count !=0 );
 
-		__global uint* result_as_uint = (__global uint*)&result[0];
-		__global uint* lookup_as_uint = (__global uint*)&lookup_table[0];
-		__local ulong buffer[256];
-		__local uint point_dim[1024];
-	    for (uint id = get_group_id(0); id < N ; id+= get_num_groups(0))
+		int start = min(top_dim, low_dim);
+		int end = max(top_dim, low_dim);
+
+		uint sum = 0;
+		for (int d = low_dim ; d < top_dim; ++d)
 		{
-			uint input_offset =  id * dimensions;
-			uint output_offset = id *total_len;
-
-			for (int j = get_local_id(0); j < dimensions; j+= get_local_size(0))
-				point_dim[j] = points[input_offset + j];
-
-			//int i_depth = get_global_id(1)+1;
-			for (int i_depth = 1; i_depth <= 4; ++i_depth)
+			uint point = point_cache[d];
+			int slot = d* dims * BYTE_COUNT;
+			for (int cache_pos =0; cache_pos < 4; ++cache_pos)
 			{
-				int result_offset = output_offset + 3 * dimensions - (i_depth - 1)*dimensions; // each mask has [dimensions] bytes in it
-				int depth = (rightshift - 8 * i_depth);
-				for (unsigned int d = 0; d < dimensions; ++d)
-				{
-					uint point_value = point_dim[d]; //points[input_offset + d]
-					uint byte =  (point_value >> depth) & 0xFF;
-					uint offset = d* dimensions * BYTE_COUNT + byte * dimensions;
-					uint lr_offset = result_offset/8;
-					uint l_offset = offset/8;
-					for (int pos =get_local_id(0) ; pos < long_steps; pos += get_local_size(0))
-					{
-						result_as_long[lr_offset + pos] |= lookup_as_long[l_offset+ pos];
-					}
-					barrier(CLK_LOCAL_MEM_FENCE);
-
-					for (int pos =byte_pos+ get_local_id(0) ; pos < dimensions;  pos += get_local_size(0))
-					{
-						result[result_offset + pos] |= lookup_table[offset+ pos ];
-					}
-					barrier(CLK_LOCAL_MEM_FENCE);
-				}
+				int pos = (id + cache_pos) % (dims *4);
+				int i_depth = 1  + pos/dims;
+				int code_pos = pos % dims; // current offset in dims code.
+				int b = (point >> (rightshift - 8 * i_depth)) & 0xFF;
+				int offset = slot + (b +1)* dims -1 - code_pos;
+				atomic_or(&local_result[gid], (lookup_table[offset] << (cache_pos *8)));
 			}
-
 		}
-}
-
-// workgroup size 64
-__kernel void morton_code_group2(__global uchar* result,
-													const __global uchar* lookup_table,
-													__global const uint* points,
-													const uint dimensions,
-													const uint N)
-{
-		const uint BYTE_COUNT = 256;
-		const uint rightshift = 32;
-		const int total_len = dimensions * 32 / 8;
-		const int long_steps = dimensions / 8;
-		__local uint point_dim[1024];
-		__local uchar result_byte_buffer[256];
-		__local ulong result_buffer[256];
-		__global long* result_as_long = (__global long*)&result[0];
-		__global long* lookup_as_long = (__global long*)&lookup_table[0];
+		result[input_offset + gid] = local_result[id];
+	}
 
 
-		if (get_global_id(0) == 0)
-			prefetch(lookup_table, 256 * dimensions * dimensions);
-	    for (uint id = get_group_id(0); id < N ; id+= get_num_groups(0))
-		{
-			uint input_offset =  id * dimensions;
-			uint output_offset = id *total_len;
-
-			for (int j = get_local_id(0); j < dimensions; j+= get_local_size(0))
-				point_dim[j] = points[input_offset + j];
-
-
-			for (int i_depth = 4; i_depth >= 1; --i_depth)
-			{
-				int result_offset = output_offset + 3 * dimensions - (i_depth - 1)*dimensions; // each mask has [dimensions] bytes in it
-				int depth = (rightshift - 8 * i_depth);
-				uint lr_offset = result_offset/8;
-
-				for (int pos = get_local_id(0) ; pos < long_steps;  pos += get_local_size(0))
-				{
-					result_byte_buffer[pos] = 0;
-					for (unsigned int d = 0; d < long_steps; ++d)
-					{
-						uint point_value = point_dim[d]; //points[input_offset + d]
-						uint byte =  (point_value >> depth) & 0xFF;
-						uint offset = d* dimensions * BYTE_COUNT + byte * dimensions;
-						uint l_offset = offset/8;
-						result_buffer[pos] |= lookup_as_long[l_offset+ pos ];
-						barrier(CLK_LOCAL_MEM_FENCE);
-					}
-					result_as_long[lr_offset + pos] |=result_buffer[pos];
-				}
-
-
-				for (int pos = long_steps * 8 + get_local_id(0) ; pos < dimensions;  pos += get_local_size(0))
-				{
-					result_byte_buffer[pos] = 0;
-					for (unsigned int d = 0; d < dimensions; ++d)
-					{
-						uint point_value = point_dim[d]; //points[input_offset + d]
-						uint byte =  (point_value >> depth) & 0xFF;
-						uint offset = d* dimensions * BYTE_COUNT + byte * dimensions;
-						result_byte_buffer[pos] |= lookup_table[offset+ pos ];
-						barrier(CLK_LOCAL_MEM_FENCE);
-					}
-					result[result_offset + pos] = result_byte_buffer[pos];
-				}
-				barrier(CLK_LOCAL_MEM_FENCE);
-
-			}
-
-		}
 }

@@ -52,4 +52,13 @@ public class BufHelper {
 		System.out.println();
 	}
 
+	public static byte[] rbb(Buffer m_lookup_table) {
+		m_lookup_table.mapBuffer(Buffer.WRITE);
+		byte[] test = new byte[(int)m_lookup_table.byteSize()];
+		m_lookup_table.readArray(0, test);
+		m_lookup_table.commitBuffer();
+		
+		return test;
+	}
+
 }

@@ -73,12 +73,15 @@ public class NarySearch extends AbstractUtil {
 		for (int i = 0; i < count; ++i)
 		{
 			m_search_kernel.invoke();
-			/*int[] test = new int[3];
+			/*int[] test = BufHelper.rbi(m_search_bounds);
+			for (int c : test)
+				System.out.print(c + " ");
+			int[] test = new int[3];
 			m_search_bounds.mapBuffer(Buffer.READ);
 			m_search_bounds.readArray(0,test);
 			m_search_bounds.commitBuffer();*/
 		}
-			
+		
 		
 		
 	}

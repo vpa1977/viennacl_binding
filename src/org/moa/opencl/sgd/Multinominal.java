@@ -93,8 +93,8 @@ public class Multinominal extends AbstractUtil {
 	
 	public void computeGradient(Instances dataset, DenseInstanceBuffer instance_buffer, Buffer weights)
 	{
-	//	BufHelper.print("dense Elements " , instance_buffer.attributes(), m_num_attributes);
-	//	BufHelper.print("dense Weights " , weights, m_num_attributes* m_num_classes);
+		//BufHelper.print("dense Elements " , instance_buffer.attributes(), m_num_attributes);
+		//BufHelper.print("dense Weights " , weights, m_num_attributes* m_num_classes);
 
 		computeDotProducts(
 			instance_buffer.attributes(),
@@ -103,7 +103,7 @@ public class Multinominal extends AbstractUtil {
 			  m_num_classes, weights,
 			  m_dot_products);
 		
-	//	BufHelper.print("dense dot_products", m_dot_products, (int)(m_dot_products.byteSize()/DirectMemory.DOUBLE_SIZE));
+		//BufHelper.print("dense dot_products", m_dot_products, (int)(m_dot_products.byteSize()/DirectMemory.DOUBLE_SIZE));
 		if (false)
 		{
 			computeHingeCPU(dataset, instance_buffer, weights);
@@ -114,7 +114,7 @@ public class Multinominal extends AbstractUtil {
 				m_dot_products, instance_buffer.classes(), dataset.numClasses(), m_minibatch_size, 
 				dataset.numAttributes());
 		}
-	//	BufHelper.print("dense hinge", m_dot_products, (int)(m_dot_products.byteSize()/DirectMemory.DOUBLE_SIZE));
+		//BufHelper.print("dense hinge", m_dot_products, (int)(m_dot_products.byteSize()/DirectMemory.DOUBLE_SIZE));
 		
 		if (false)
 		{
@@ -173,7 +173,7 @@ public class Multinominal extends AbstractUtil {
 		return m_minibatch_gradients;
 	}
 	
-	public synchronized void computeMultinominalHinge(int classIndex,
+	public  void computeMultinominalHinge(int classIndex,
 			Buffer weights,
 			Buffer dotProduct, Buffer classes, int num_classes, int num_rows, int num_attributes)
 	{
@@ -192,7 +192,7 @@ public class Multinominal extends AbstractUtil {
 	}
 	
 	
-	public synchronized void computeReduceToMinibatch(int classIndex,Buffer gradients, 
+	public  void computeReduceToMinibatch(int classIndex,Buffer gradients, 
 			Buffer dotProduct, 
 			int num_classes, 
 			int num_attributes, 
@@ -229,7 +229,7 @@ public class Multinominal extends AbstractUtil {
 
 	
 	
-	public synchronized void computeReduceToMinibatch(int classIndex, Buffer minbatchGradients, Buffer dotProduct, int num_classes, int num_attributes, 
+	public  void computeReduceToMinibatch(int classIndex, Buffer minbatchGradients, Buffer dotProduct, int num_classes, int num_attributes, 
 			DenseInstanceBuffer source)
 	{
 		minbatchGradients.fill((byte)0);
@@ -263,7 +263,7 @@ public class Multinominal extends AbstractUtil {
 	 * @param weights
 	 * @param margins
 	 */
-	public synchronized  native void computeDotProducts(Buffer column_indices, 
+	public  native void computeDotProducts(Buffer column_indices, 
 										   Buffer row_jumper, 
 										   Buffer elements,
 										   Buffer row_blocks, 
@@ -285,7 +285,7 @@ public class Multinominal extends AbstractUtil {
 	 * @param weights
 	 * @param margins
 	 */
-	public synchronized native void computeDotProducts(Buffer attributes, 
+	public native void computeDotProducts(Buffer attributes, 
 			   int columns, 
 			   int rows, 
 			   int num_classes,

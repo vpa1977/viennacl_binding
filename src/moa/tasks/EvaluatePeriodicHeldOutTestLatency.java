@@ -152,7 +152,7 @@ public class EvaluatePeriodicHeldOutTestLatency extends MainTask {
             monitor.setCurrentActivityDescription("Training...");
             long instancesTarget = instancesProcessed
                     + this.sampleFrequencyOption.getValue();
-            long trainStartTime = TimingUtils.getNanoCPUTimeOfCurrentThread();
+            long trainStartTime = System.nanoTime();
             while (instancesProcessed < instancesTarget && stream.hasMoreInstances() == true) {
                 learner.trainOnInstance(stream.nextInstance());
                 instancesProcessed++;
@@ -164,7 +164,7 @@ public class EvaluatePeriodicHeldOutTestLatency extends MainTask {
                             / (double) (this.trainSizeOption.getValue()));
                 }
             }
-            double lastTrainTime = TimingUtils.nanoTimeToSeconds(TimingUtils.getNanoCPUTimeOfCurrentThread()
+            double lastTrainTime = TimingUtils.nanoTimeToSeconds(System.nanoTime()
                     - trainStartTime);
             totalTrainTime += lastTrainTime;
             if (totalTrainTime > this.trainTimeOption.getValue()) {
@@ -196,11 +196,9 @@ public class EvaluatePeriodicHeldOutTestLatency extends MainTask {
                 double trueClass = testInst.classValue();
                 testInst.setClassMissing();
                 
-                double[] prediction = null;
+                double[] prediction = learner.getVotesForInstance(testInst);
                 
                 long start = System.nanoTime();
-                for (int i = 0; i < 10 ; ++i)
-                	prediction = learner.getVotesForInstance(testInst);
                 long end = System.nanoTime();
                 count +=10;
                 period += (end - start);
@@ -225,7 +223,11 @@ public class EvaluatePeriodicHeldOutTestLatency extends MainTask {
             List<Measurement> measurements = new ArrayList<Measurement>();
             measurements.add(new Measurement("evaluation instances",            		
                     instancesProcessed));
-            measurements.add(new Measurement("test latency", final_period));            
+            measurements.add(new Measurement("total train speed",
+                    instancesProcessed / totalTrainTime));
+            measurements.add(new Measurement("last train speed",
+                    this.sampleFrequencyOption.getValue() / lastTrainTime));
+            
             
             Measurement[] performanceMeasurements = evaluator.getPerformanceMeasurements();
             for (Measurement measurement : performanceMeasurements) {

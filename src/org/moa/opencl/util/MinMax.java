@@ -84,6 +84,34 @@ public class MinMax extends AbstractUtil {
 		m_full_min_max_kernel_float.invoke();
 	}
 	
+	public void fullMinMaxFloat(Instances dataset, Buffer attributes, int rows, Buffer min_buffer, Buffer max_buffer) {
+		int global_size = (int)(dataset.numAttributes())*256;
+		m_full_min_max_kernel_float.set_global_size(0, global_size);
+		m_full_min_max_kernel_float.set_local_size(0, 256);
+		m_full_min_max_kernel_float.set_arg(0, dataset.classIndex());
+		m_full_min_max_kernel_float.set_arg(1, dataset.numAttributes());
+		m_full_min_max_kernel_float.set_arg(2, rows);
+		m_full_min_max_kernel_float.set_arg(3,  attributes);
+		m_full_min_max_kernel_float.set_arg(4,  min_buffer);
+		m_full_min_max_kernel_float.set_arg(5,  max_buffer);
+		m_full_min_max_kernel_float.invoke();
+	}
+	
+	public void fullMinMaxFloat(int numAttributes, Buffer attributes, int rows, Buffer min_buffer, Buffer max_buffer) {
+		int global_size = (int)(numAttributes)*256;
+		m_full_min_max_kernel_float.set_global_size(0, global_size);
+		m_full_min_max_kernel_float.set_local_size(0, 256);
+		m_full_min_max_kernel_float.set_arg(0, -1);
+		m_full_min_max_kernel_float.set_arg(1, numAttributes);
+		m_full_min_max_kernel_float.set_arg(2, rows);
+		m_full_min_max_kernel_float.set_arg(3,  attributes);
+		m_full_min_max_kernel_float.set_arg(4,  min_buffer);
+		m_full_min_max_kernel_float.set_arg(5,  max_buffer);
+		m_full_min_max_kernel_float.invoke();
+	}
+
+
+	
 	public void fullMinMaxFloatIndices(Instances dataset, 
           DenseInstanceBuffer instance_buffer, Buffer min_buffer, Buffer max_buffer, Buffer indices, int length) {
 		int global_size = (int)(dataset.numAttributes())*256;

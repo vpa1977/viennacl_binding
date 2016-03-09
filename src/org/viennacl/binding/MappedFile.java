@@ -18,7 +18,8 @@ public class MappedFile {
     
 
     public MappedFile(String name, long size) throws Exception {
-         name = "/tmp/" + name;
+         name = "c:/tmp/" + name;
+         
         size = (size + 0xfffL) & ~0xfffL;
 
         RandomAccessFile f = new RandomAccessFile(name, "rw");

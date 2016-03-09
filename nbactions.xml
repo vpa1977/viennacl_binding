@@ -48,7 +48,7 @@
                 <exec.args>-Djava.library.path=/home/bsp/vienna-cl-port/viennacl-java-binding/Release -classpath %classpath Run</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.workingdir>/home/bsp/vienna-cl-port/viennacl-java-binding/Release</exec.workingdir>
-                <Env.LD_LIBRARY_PATH>:/home/bsp/HSA-Runtime-AMD/lib/</Env.LD_LIBRARY_PATH>
+                
                 
             </properties>
         </action>

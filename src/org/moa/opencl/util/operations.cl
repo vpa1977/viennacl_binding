@@ -68,7 +68,12 @@ __kernel void normalize_attributes_float(
 	int i;
 	for (i = 0; i < attribute_size ; i ++ )
 	{
-		if (attribute_type[i] == atNUMERIC)
+		if (attribute_type == 0)
+		{
+			double width = ( range_max[i] - range_min[i]);
+			out[vector_offset+i] = width > 0 ? (in[vector_offset+i] - range_min[i]) / width : 0;
+		}
+		else if (attribute_type[i] == atNUMERIC)
 		{
 			double width = ( range_max[i] - range_min[i]);
 			out[vector_offset+i] = width > 0 ? (in[vector_offset+i] - range_min[i]) / width : 0;
@@ -80,6 +85,42 @@ __kernel void normalize_attributes_float(
 	}
   }
 }
+
+__kernel void normalize_attributes_float_replace_min(
+		__global float* in,
+		__global float* out,
+		__global  float* range_min,
+		__global  float* range_max,
+		__global const int* attribute_type,
+		const int attribute_size,
+    const int num_instances)
+{
+  for (int j = get_global_id(0); j < num_instances; j+= get_global_size(0))
+  {
+	int vector_offset = attribute_size * j;
+	int i;
+	for (i = 0; i < attribute_size ; i ++ )
+	{
+		if (attribute_type == 0)
+		{
+			float width = ( range_max[i] - range_min[i]);
+			out[vector_offset+i] = width > 0 ? (in[vector_offset+i] - range_min[i]) / width : 0;
+			out[vector_offset +i] = out[vector_offset +i]> 0 ? out[vector_offset +i] : 0;
+		}
+		else if (attribute_type[i] == atNUMERIC)
+		{
+			float width = ( range_max[i] - range_min[i]);
+			out[vector_offset+i] = width > 0 ? (in[vector_offset+i] - range_min[i]) / width : 0;
+			out[vector_offset +i] = out[vector_offset +i]> 0 ? out[vector_offset +i] : 0;
+		}
+		else
+		{
+			out[vector_offset+i] = in[vector_offset + i];
+		}
+	}
+  }
+}
+
 
 
 __kernel void random_shift(__global uint* data, __global uint* shift, const int max)

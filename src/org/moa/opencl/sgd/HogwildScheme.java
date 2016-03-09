@@ -32,6 +32,12 @@ public class HogwildScheme {
 	private DenseInstanceBuffer m_test_instance;
 	private int m_self_id; /* identifier of the worker. worker 0 is responsible for weights update */
 	private Buffer m_bias;
+	private int m_step;
+	
+	public Context getContext() 
+	{
+		return m_context;
+	}
 
  
 	public HogwildScheme(Updater upd, Context ctx, Instances dataset, int self_id, int minibatch_size, int number_of_workers, int one_bit_period) {
@@ -42,12 +48,12 @@ public class HogwildScheme {
 		m_test_instance.setClassReplaceValue(1);
 		m_gradient = new Multinominal(ctx, dataset.numClasses(), dataset.numAttributes(), minibatch_size);
 		m_local_weights = new Buffer(ctx, dataset.numClasses() * dataset.numAttributes() * m_gradient.typeSize());
-
 		m_weights = new Buffer(ctx, dataset.numClasses() * dataset.numAttributes() * m_gradient.typeSize());
-		m_weights.fill((byte)0);
+		//m_weights.fill((byte)0);
 		m_self_id = self_id;
 		m_dataset = dataset;
 		m_context = ctx;
+		m_step = 0;
 	}
 	
 	public int getId()
@@ -55,9 +61,9 @@ public class HogwildScheme {
 		return m_self_id;
 	}
 	
-	public void trainStep(UnitOfWork work , int step)
+	public void trainStep(UnitOfWork work )
 	{
-			
+		++m_step;	
 		if (work instanceof DenseInstanceBuffer)
 		{
 			DenseInstanceBuffer dib = (DenseInstanceBuffer) work;

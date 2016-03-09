@@ -84,9 +84,10 @@ public class Distance extends AbstractUtil {
 			int size, 
 			Buffer indices
 			) {
+		
 		m_square_distance_kernel_float.set_global_size(0, WG_SIZE*WG_COUNT);
-    m_square_distance_kernel_float.set_local_size(0, WG_SIZE);
-    m_square_distance_kernel_float.set_arg(0, size);
+		m_square_distance_kernel_float.set_local_size(0, WG_SIZE);
+		m_square_distance_kernel_float.set_arg(0, size);
     
 		m_square_distance_kernel_float.set_arg(1, test_instance.attributes());
 		m_square_distance_kernel_float.set_arg(2, instance_buffer.attributes());

@@ -103,7 +103,7 @@ public class KNN extends AbstractClassifier  {
 		if (nearestNeighbourSearchOption.getChosenIndex() == 3)
 			m_search = new DoubleCosineSearch();
 		if (nearestNeighbourSearchOption.getChosenIndex() == 4)
-			m_search = new FJLTZorderSearch();
+			m_search = null;
 		if (nearestNeighbourSearchOption.getChosenIndex() == 5)
 			m_search = new FloatLinearSearch();
 

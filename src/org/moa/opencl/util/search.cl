@@ -44,7 +44,7 @@ void search(__global const uchar* keys, __global const uint* key_indices, __glob
 		divergenceKindLow = dkNONE;
 		divergenceKindHigh = dkNONE;
 	}
-
+	barrier(CLK_LOCAL_MEM_FENCE); // to avoid further divergence
 	int lowIndex = key_indices[localLowBound] * keyLength;
 	int highIndex = key_indices[localHighBound] * keyLength;
 	int pos = get_local_id(0);

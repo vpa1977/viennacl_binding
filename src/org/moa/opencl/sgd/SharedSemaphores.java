@@ -14,7 +14,7 @@ public class SharedSemaphores {
 
 	public SharedSemaphores(String id, int num_semaphores) throws Exception
 	{
-    m_size = (int)(num_semaphores*DirectMemory.LONG_SIZE);
+		m_size = (int)(num_semaphores*DirectMemory.LONG_SIZE);
 		m_semaphores = new MappedFile(id, m_size);
 		
 	}
@@ -33,7 +33,7 @@ public class SharedSemaphores {
 	{
 		if (offset >= m_size || offset < 0)
 			throw new RuntimeException("range check");
-    System.out.println("Setting semaphore "+ offset +" value "+ b + " at address " + (m_semaphores.getAddr() + DirectMemory.LONG_SIZE * offset));
+  //  System.out.println("Setting semaphore "+ offset +" value "+ b + " at address " + (m_semaphores.getAddr() + DirectMemory.LONG_SIZE * offset));
     nativeSet(m_semaphores.getAddr(), offset, b ? 33 : 0 );
 	}
   
